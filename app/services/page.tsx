@@ -1,11 +1,12 @@
 
+"use client";
+import { useEffect, useState } from "react";
 
 const stats = [
     { number: "9+", label: "Services Offered" },
     { number: "150+", label: "Projects Completed" },
     { number: "100%", label: "Client Satisfaction" },
 ];
-
 
 const services = [
     {
@@ -66,6 +67,53 @@ const services = [
     },
 ];
 
+function AnimatedCounter({
+    value,
+    duration = 2000,
+}: {
+    value: string;
+    duration?: number;
+}) {
+    const [count, setCount] = useState(0);
+
+    useEffect(() => {
+        const target = parseInt(value.replace(/\D/g, ""), 10);
+        const startTime = performance.now();
+        let animationFrame = 0;
+
+        const animate = (currentTime: number) => {
+            const progress = Math.min(
+                (currentTime - startTime) / duration,
+                1
+            );
+
+            // Smooth ease-out animation
+            const easedProgress = 1 - Math.pow(1 - progress, 3);
+
+            setCount(Math.floor(easedProgress * target));
+
+            if (progress < 1) {
+                animationFrame = requestAnimationFrame(animate);
+            } else {
+                setCount(target);
+            }
+        };
+
+        animationFrame = requestAnimationFrame(animate);
+
+        return () => cancelAnimationFrame(animationFrame);
+    }, [value, duration]);
+
+    const suffix = value.replace(/[0-9]/g, "");
+
+    return (
+        <span>
+            {count}
+            {suffix}
+        </span>
+    );
+}
+
 function ArrowRight() {
     return (
         <svg
@@ -86,14 +134,17 @@ function ArrowRight() {
         </svg>
     );
 }
+
 export default function Services() {
     return (
         <main className="min-h-screen">
             {/* Hero Section */}
-            <section className="flex min-h-[570px] flex-col items-center bg-gradient-to-b from-[#f1fbff] to-white px-6 pb-20 pt-20 text-center">
+            <section className="flex min-h-142.5 flex-col items-center bg-linear-to-b from-[#f1fbff] to-white px-6 pb-20 pt-20 text-center">
                 {/* Breadcrumb */}
                 <div className="mb-7 flex items-center gap-3 text-sm">
-                    <span className="font-medium text-[#20afca]">Home</span>
+                    <span className="font-medium text-[#20afca]">
+                        Home
+                    </span>
                     <span className="text-slate-400">›</span>
                     <span className="text-slate-500">Services</span>
                 </div>
@@ -120,8 +171,8 @@ export default function Services() {
                 </p>
             </section>
 
-            {/* Faded Image Statistics Strip */}
-            <section className="relative h-[300px] w-full overflow-hidden">
+            {/* Statistics Strip with Animated Counters */}
+            <section className="relative h-75 w-full overflow-hidden">
                 {/* Background Image */}
                 <div
                     className="absolute inset-0 bg-cover bg-center"
@@ -134,20 +185,23 @@ export default function Services() {
                 <div
                     className="absolute inset-0"
                     style={{
-                        background: "linear-gradient(135deg, #1a2342d9, #1ba8c880)",
+                        background:
+                            "linear-gradient(135deg, #1a2342d9, #1ba8c880)",
                     }}
                 />
 
                 {/* Statistics */}
                 <div className="relative z-10 mx-auto flex h-full max-w-6xl items-center justify-center">
-                    {stats.map((stat, index) => (
+                    {stats.map((stat) => (
                         <div
                             key={stat.label}
                             className="flex h-full flex-1 flex-col items-center justify-center px-3 text-center"
-
                         >
                             <span className="text-4xl font-extrabold text-white sm:text-5xl">
-                                {stat.number}
+                                <AnimatedCounter
+                                    value={stat.number}
+                                    duration={2000}
+                                />
                             </span>
 
                             <span className="mt-2 text-xs font-semibold uppercase tracking-wider text-white/90 sm:text-sm">
@@ -158,8 +212,7 @@ export default function Services() {
                 </div>
             </section>
 
-
-
+            {/* All Services Section */}
             <section className="all-services bg-white px-5 py-20 sm:px-8 lg:px-12 lg:py-28">
                 <div className="container mx-auto max-w-7xl">
                     {/* Section Header */}
@@ -170,7 +223,7 @@ export default function Services() {
 
                         <h2 className="mt-6 text-3xl font-extrabold leading-tight tracking-tight text-[#101d32] sm:text-4xl md:text-5xl">
                             Everything You Need to{" "}
-                            <span className="text-gradient bg-gradient-to-r from-[#20afca] to-[#52c8dc] bg-clip-text text-transparent">
+                            <span className="bg-linear-to-r from-[#20afca] to-[#52c8dc] bg-clip-text text-transparent">
                                 Grow Online
                             </span>
                         </h2>
@@ -183,14 +236,14 @@ export default function Services() {
 
                     {/* Responsive Services Grid */}
                     <div className="services-grid mx-auto w-full max-w-7xl px-5 sm:px-8 lg:px-12">
-                        <div className=" grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                             {services.map((service) => (
                                 <article
                                     key={service.title}
-                                    className="service-card group relative flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-6  transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-gray-300/50 sm:p-7"
+                                    className="service-card group relative flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-gray-300/50 sm:p-7"
                                 >
-                                    {/* Top Blue Accent Only */}
-                                    <div className="absolute left-0 top-0 h-1 w-0 bg-gradient-to-r from-[#20afca] to-[#52c8dc] transition-all duration-300 group-hover:w-full" />
+                                    {/* Top Blue Accent */}
+                                    <div className="absolute left-0 top-0 h-1 w-0 bg-linear-to-r from-[#20afca] to-[#52c8dc] transition-all duration-300 group-hover:w-full" />
 
                                     {/* Service Icon */}
                                     <div className="mb-6 flex items-center">
@@ -236,12 +289,11 @@ export default function Services() {
                                         </div>
                                     </div>
 
-
-                                    {/* Get Started Button */}
+                                    {/* Get Started Link */}
                                     <div className="mt-7 pt-2">
                                         <a
                                             href="/contact/"
-                                            className="group/cta inline-flex items-center gap-2 rounded-lg bg-transparent px-0 py-2 text-sm font-bold text-[#159fba] transition-colors duration-300 "
+                                            className="group/cta inline-flex items-center gap-2 rounded-lg bg-transparent px-0 py-2 text-sm font-bold text-[#159fba] transition-colors duration-300"
                                         >
                                             <span>Get Started</span>
 
@@ -262,85 +314,76 @@ export default function Services() {
                                             </svg>
                                         </a>
                                     </div>
-
                                 </article>
                             ))}
                         </div>
                     </div>
-
                 </div>
             </section>
 
+            {/* Call To Action Section */}
+            <section className="relative isolate overflow-hidden border-b-4 border-[#1ba8c8] bg-[linear-gradient(135deg,#1a2342_0%,#243060_100%)] px-5 py-24 text-center sm:px-8 sm:py-28">
+                {/* Cyan Radial Glow */}
+                <div
+                    className="pointer-events-none absolute -top-25 left-1/2 -z-10 h-150 w-150 -translate-x-1/2 rounded-full bg-[radial-gradient(circle,#1ba8c833_0%,transparent_70%)]"
+                    aria-hidden="true"
+                />
 
-             {/* CTA Section */}
-    
-{/* Call To Action Section */}
-<section className="relative isolate overflow-hidden border-b-4 border-[#1ba8c8] bg-[linear-gradient(135deg,#1a2342_0%,#243060_100%)] px-5 py-24 text-center sm:px-8 sm:py-28">
-  {/* Cyan Radial Glow */}
-  <div
-    className="pointer-events-none absolute left-1/2 top-[-100px] -z-10 h-[600px] w-[600px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,#1ba8c833_0%,transparent_70%)]"
-    aria-hidden="true"
-  />
+                <div className="mx-auto flex max-w-4xl flex-col items-center">
+                    {/* Label */}
+                    <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-[#1ba8c8]/40 bg-[#1ba8c8]/10 px-5 py-2 text-xs font-bold uppercase tracking-[2px] text-[#3abfdb]">
+                        <span className="h-1.5 w-1.5 rounded-full bg-[#3abfdb]" />
+                        Let&apos;s Talk
+                    </div>
 
-  <div className="mx-auto flex max-w-4xl flex-col items-center">
-    {/* Label */}
-    <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-[#1ba8c8]/40 bg-[#1ba8c8]/10 px-5 py-2 text-xs font-bold uppercase tracking-[2px] text-[#3abfdb]">
-      <span className="h-1.5 w-1.5 rounded-full bg-[#3abfdb]" />
-      Let&apos;s Talk
-    </div>
+                    {/* Heading */}
+                    <h2 className="text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl md:text-5xl">
+                        Ready to Build Your{" "}
+                        <span className="bg-linear-to-r from-[#1ba8c8] to-[#3abfdb] bg-clip-text text-transparent">
+                            Digital Empire?
+                        </span>
+                    </h2>
 
-    {/* Heading */}
-    <h2 className="text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl md:text-5xl">
-      Ready to Build Your{" "}
-      <span className="bg-linear-to-r from-[#1ba8c8] to-[#3abfdb] bg-clip-text text-transparent">
-        Digital Empire?
-      </span>
-    </h2>
+                    {/* Description */}
+                    <p className="mt-7 max-w-2xl text-base leading-8 text-slate-300 sm:text-xl">
+                        Contact our team today and let&apos;s turn your ideas into digital
+                        reality.
+                    </p>
 
-    {/* Description */}
-    <p className="mt-7 max-w-2xl text-base leading-8 text-slate-300 sm:text-xl">
-      Contact our team today and let&apos;s turn your ideas into digital
-      reality.
-    </p>
+                    {/* CTA Buttons */}
+                    <div className="mt-10 flex w-full flex-col items-center justify-center gap-4 sm:w-auto sm:flex-row">
+                        <a
+                            href="/contact/"
+                            className="group inline-flex w-full items-center justify-center gap-3 rounded-full bg-linear-to-r from-[#1ba8c8] to-[#3abfdb] px-8 py-4 text-base font-bold text-white shadow-[0_8px_32px_#1ba8c840] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_12px_40px_#1ba8c855] sm:w-auto"
+                        >
+                            <span>Start a Project</span>
 
-    {/* CTA Buttons */}
-    <div className="mt-10 flex w-full flex-col items-center justify-center gap-4 sm:w-auto sm:flex-row">
-      <a
-        href="/contact/"
-        className="inline-flex w-full items-center justify-center gap-3 rounded-full bg-linear-to-r from-[#1ba8c8] to-[#3abfdb] px-8 py-4 text-base font-bold text-white shadow-[0_8px_32px_#1ba8c840] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_12px_40px_#1ba8c855] sm:w-auto"
-      >
-        <span>Start a Project</span>
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                                className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1"
+                                aria-hidden="true"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M5 12h14m-7-7 7 7-7 7"
+                                />
+                            </svg>
+                        </a>
 
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
-          className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1"
-          aria-hidden="true"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M5 12h14m-7-7 7 7-7 7"
-          />
-        </svg>
-      </a>
-
-      <a
-        href="tel:+0000000000"
-        className="inline-flex w-full items-center justify-center rounded-full border border-white/30 bg-white/[0.02] px-8 py-4 text-base font-bold text-white transition-all duration-300 hover:border-white/50 hover:bg-white/10 sm:w-auto"
-      >
-        Call Us Now
-      </a>
-    </div>
-  </div>
-</section>
-
-
-
-
+                        <a
+                            href="tel:+0000000000"
+                            className="inline-flex w-full items-center justify-center rounded-full border border-white/30 bg-white/2 px-8 py-4 text-base font-bold text-white transition-all duration-300 hover:border-white/50 hover:bg-white/10 sm:w-auto"
+                        >
+                            Call Us Now
+                        </a>
+                    </div>
+                </div>
+            </section>
         </main>
     );
 }
