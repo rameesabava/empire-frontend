@@ -1,12 +1,11 @@
 "use client";
 
-// app/portfolio/page.tsx  (Next.js App Router + Tailwind CSS)
-// Dependency: npm i lucide-react
 
 import { useEffect, useRef, useState } from "react";
 import { Plus_Jakarta_Sans } from "next/font/google";
-import { ArrowRight, ChevronRight, MessageCircle } from "lucide-react";
+import { ArrowRight, ChevronRight } from "lucide-react";
 import Link from "next/link";
+import { FaWhatsapp } from "react-icons/fa";
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -299,14 +298,18 @@ export default function PortfolioPage() {
         </div>
       </section>
 
-      {/* Floating WhatsApp button */}
-      <a
-        href="https://wa.me/919847980605"
-        aria-label="Chat on WhatsApp"
-        className="fixed right-5 top-1/2 z-50 grid h-14 w-14 -translate-y-1/2 place-items-center rounded-full bg-[#25d366] text-white shadow-xl transition-transform duration-300 hover:scale-110"
-      >
-        <MessageCircle size={26} />
-      </a>
+    
+{/* Floating WhatsApp button */}
+<Link
+  href="https://wa.me/919847980605"
+  target="_blank"
+  rel="noopener noreferrer"
+  aria-label="Chat on WhatsApp"
+  className="fixed bottom-5 right-5 z-50 grid h-14 w-14 place-items-center rounded-full bg-[#25D366] text-white shadow-xl transition-all duration-300 hover:scale-110 hover:shadow-2xl"
+>
+  <FaWhatsapp size={30} />
+</Link>
+
     </main>
   );
 }

@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ArrowRight, Check, CheckCircle2, Code2,  Monitor, Plus, ShieldCheck, Smartphone, Users, Zap } from "lucide-react";
+import { ArrowRight, ArrowUp, Check, CheckCircle2, Code2,  Monitor, Plus, ShieldCheck, Smartphone, Users, Zap } from "lucide-react";
 import Link from "next/link";
+import { FaWhatsapp } from "react-icons/fa";
 
 const marqueeItems = [
   "Software Solutions",
@@ -100,6 +101,20 @@ function CountUp({ end }: { end: number }) {
 
 export default function Home() {
   const [open, setOpen] = useState<number | null>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+  const handleScroll = () => {
+    setShowScrollTop(window.scrollY > 200);
+  };
+
+  window.addEventListener("scroll", handleScroll);
+  handleScroll();
+
+  return () => {
+    window.removeEventListener("scroll", handleScroll);
+  };
+}, []);
 
   return (
     <main className="overflow-x-hidden bg-white font-sans text-[#0f1c3f]">
@@ -444,6 +459,40 @@ export default function Home() {
           </div>
         </div>
       </section>
+     
+{/* Floating WhatsApp and Scroll-to-Top Buttons */}
+<div className="fixed bottom-5 right-5 z-50 flex flex-col items-center gap-3">
+  {/* WhatsApp Button */}
+  <Link
+    href="https://wa.me/919847980605"
+    target="_blank"
+    rel="noopener noreferrer"
+    aria-label="Chat on WhatsApp"
+    className="grid h-14 w-14 place-items-center rounded-full bg-[#25D366] text-white shadow-xl transition-all duration-300 hover:scale-110 hover:shadow-2xl"
+  >
+    <FaWhatsapp size={30} />
+  </Link>
+
+  {/* Scroll-to-Top Button */}
+  <button
+    type="button"
+    onClick={() =>
+      window.scrollTo({ top: 0, behavior: "smooth" })
+    }
+    aria-label="Scroll to top"
+    className={`grid h-12 w-12 place-items-center rounded-full bg-white text-blue-400 shadow-xl transition-all duration-300 hover:scale-110 hover:text-white hover:bg-[#168aa5] ${
+      showScrollTop
+        ? "translate-y-0 opacity-100"
+        : "pointer-events-none translate-y-3 opacity-0"
+    }`}
+    aria-hidden={!showScrollTop}
+    tabIndex={showScrollTop ? 0 : -1}
+  >
+    <ArrowUp size={24} />
+  </button>
+</div>
+
+
     </main>
   );
 }
