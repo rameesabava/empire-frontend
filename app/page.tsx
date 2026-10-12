@@ -117,6 +117,7 @@ export default function Home() {
 }, []);
 
   return (
+
     <main className="overflow-x-hidden bg-white font-sans text-[#0f1c3f]">
       {/* Keyframes used by the animations below */}
       <style>{`
@@ -494,5 +495,6 @@ export default function Home() {
 
 
     </main>
+
   );
 }
