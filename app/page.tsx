@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ArrowRight, Check, CheckCircle2, Code2,  Monitor, Plus, ShieldCheck, Smartphone, Users, Zap } from "lucide-react";
 import Link from "next/link";
 
@@ -66,7 +66,39 @@ const Pill = ({ children }: { children: React.ReactNode }) => (
   </span>
 );
 
-export default function Page() {
+
+function CountUp({ end }: { end: number }) {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    const duration = 800; // Fast animation: 0.8 seconds
+    const startTime = performance.now();
+    let animationFrame: number;
+
+    const animate = (currentTime: number) => {
+      const progress = Math.min(
+        (currentTime - startTime) / duration,
+        1
+      );
+
+      setCount(Math.floor(progress * end));
+
+      if (progress < 1) {
+        animationFrame = requestAnimationFrame(animate);
+      } else {
+        setCount(end);
+      }
+    };
+
+    animationFrame = requestAnimationFrame(animate);
+
+    return () => cancelAnimationFrame(animationFrame);
+  }, [end]);
+
+  return <>{count}+</>;
+}
+
+export default function Home() {
   const [open, setOpen] = useState<number | null>(null);
 
   return (
@@ -119,18 +151,24 @@ export default function Page() {
               </Link>
             </div>
 
-            <div className="mt-12 grid max-w-md grid-cols-3 gap-6 border-t border-slate-200 pt-8">
-              {[
-                ["150+", "Websites Delivered"],
-                ["50+", "Happy Clients"],
-                ["9+", "Years of Experience"],
-              ].map(([v, l]) => (
-                <div key={l}>
-                  <p className="text-3xl font-extrabold">{v}</p>
-                  <p className="mt-1 text-xs text-slate-500">{l}</p>
-                </div>
-              ))}
-            </div>
+            
+<div className="mt-12 grid max-w-md grid-cols-3 divide-x divide-slate-200 border-t border-slate-200 pt-8">
+  {[
+    { value: 150, label: "Websites Delivered" },
+    { value: 50, label: "Happy Clients" },
+    { value: 9, label: "Years of Experience" },
+  ].map(({ value, label }) => (
+    <div key={label} className="px-3 first:pl-0 last:pr-0">
+      <p className="text-2xl font-extrabold sm:text-3xl">
+        <CountUp end={value} />
+      </p>
+      <p className="mt-2 text-[10px] leading-relaxed text-slate-500 sm:text-xs">
+        {label}
+      </p>
+    </div>
+  ))}
+</div>
+
           </div>
 
           {/* Right */}
@@ -311,17 +349,21 @@ export default function Page() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-5">
-          {stats.map((s) => (
-            <div
-              key={s.label}
-              className="rounded-2xl border border-slate-200 bg-slate-50 px-6 py-9 text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
-            >
-              <p className="text-4xl font-extrabold text-[#1ea5c4]">{s.value}</p>
-              <p className="mt-2 text-sm text-slate-500">{s.label}</p>
-            </div>
-          ))}
-        </div>
+      
+<div className="grid grid-cols-2 gap-5">
+  {stats.map((s) => (
+    <div
+      key={s.label}
+      className="rounded-2xl border border-slate-200 bg-slate-50 px-6 py-9 text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
+    >
+      <p className="text-4xl font-extrabold text-[#1ea5c4]">
+        <CountUp end={parseInt(s.value)} />
+      </p>
+      <p className="mt-2 text-sm text-slate-500">{s.label}</p>
+    </div>
+  ))}
+</div>
+
       </section>
 
       {/* ───────────── FAQ ───────────── */}
@@ -388,7 +430,7 @@ export default function Page() {
           </p>
           <div className="mt-9 flex flex-wrap justify-center gap-4">
             <Link
-              href="/"
+              href="/contact"
               className="inline-flex items-center gap-2 rounded-full bg-[#1ea5c4] px-7 py-3.5 text-sm font-semibold transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-[#1ea5c4]/40"
             >
               Start Your Project <ArrowRight size={16} />
