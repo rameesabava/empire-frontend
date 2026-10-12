@@ -228,12 +228,12 @@ export default function PortfolioPage() {
                   <p className="max-w-xs translate-y-3 text-sm leading-relaxed text-white/85 transition-transform delay-100 duration-500 group-focus-within:translate-y-0 group-hover:translate-y-0">
                     {p.overlay}
                   </p>
-                  <a
-                    href={`/portfolio/${p.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                  <Link
+                    href='/contact'
                     className="mt-1 translate-y-3 rounded-full border-2 border-white/70 bg-white/10 px-6 py-2 text-sm font-semibold text-white transition-all delay-150 duration-500 hover:bg-white hover:text-[#0f1c3f] group-focus-within:translate-y-0 group-hover:translate-y-0"
                   >
                     View Work
-                  </a>
+                  </Link>
                 </div>
               </div>
               <div className="p-6">
