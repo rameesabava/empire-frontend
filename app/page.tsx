@@ -306,7 +306,7 @@ export default function Home() {
                 className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-8 transition-shadow duration-300 hover:shadow-xl"
               >
                 {/* Top line: grows left → right on hover */}
-                <span className="absolute left-0 top-0 h-[3px] w-0 bg-gradient-to-r from-[#1ea5c4] to-[#0f1c3f] transition-all duration-500 ease-out group-hover:w-full" />
+                <span className="absolute left-0 top-0 h-[3px] w-0 bg-gradient-to-r from-[#1ea5c4] to-[#1ea5c4] transition-all duration-500 ease-out group-hover:w-full" />
 
                 {/* Icon turns colored on hover */}
                 <span className="grid h-14 w-14 place-items-center rounded-xl bg-[#1ea5c4]/10 text-slate-500 transition-colors duration-300 group-hover:bg-[#1ea5c4] group-hover:text-white">
