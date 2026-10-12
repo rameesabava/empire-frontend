@@ -11,12 +11,7 @@ const poppins = Poppins({
   display: "swap",
 });
 
-/* ---------- colours (from the original :root) ----------
-   teal #1ba8c8 | teal-light #3abfdb | teal-dark #1490ac | teal-pale #ebf9fc
-   navy #1a2342 | navy-mid #243060 | text-primary #0d1b2e
-   text-secondary #4a5a6b | grey-500 #556475 | muted #7a8ba0
-   grey-50 #f3f6f8 | grey-200 #d0d9e3 | grey-300 #a8b5c5
----------------------------------------------------------- */
+
 const WRAP = "mx-auto w-full max-w-[1200px] px-5 sm:px-8";
 const TEAL_TEXT =
   "bg-[linear-gradient(135deg,#1ba8c8_0%,#3abfdb_100%)] bg-clip-text text-transparent [-webkit-text-fill-color:transparent]";
