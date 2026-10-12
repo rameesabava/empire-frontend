@@ -6,6 +6,7 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 import { ArrowRight, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { FaWhatsapp } from "react-icons/fa";
+import Image from "next/image";
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -161,7 +162,7 @@ export default function PortfolioPage() {
       {/* ───────────── PAGE HERO ───────────── */}
       <section className="bg-gradient-to-b from-[#eaf6fb] to-white px-6 pb-16 pt-20 text-center">
         <nav className="flex items-center justify-center gap-2 text-sm">
-          <a href="/" className="font-medium text-[#1ea5c4] hover:underline">Home</a>
+          <Link href="/" className="font-medium text-[#1ea5c4] hover:underline">Home</Link>
           <ChevronRight size={14} className="text-slate-400" />
           <span className="text-slate-500">Portfolio</span>
         </nav>
