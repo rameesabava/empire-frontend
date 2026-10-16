@@ -1,540 +1,1023 @@
 "use client";
 
-import { useState } from "react";
-import type { ChangeEvent, FormEvent, JSX } from "react";
+/* =====================================================================
+   Empire: Contact page (single file)
+   Save as: app/contact/page.tsx
+   ---------------------------------------------------------------------
+   Renders only the page body. The existing Navbar and Footer come from
+   your layout, so they are untouched and not duplicated.
 
-/* ---------- Types ---------- */
+   CONFIGURATION (see COMPANY and CONTACT_ENDPOINT below):
+   - COMPANY holds the verified office address used by the map section.
+   - CONTACT_ENDPOINT is the form's delivery endpoint. While it is null
+     the form validates, then shows an honest "not connected" error
+     instead of a fake success message.
+   ===================================================================== */
 
-interface ContactItem {
-    label: string;
-    value: string;
-    href?: string;
-    icon: string; // SVG path "d" attribute
-}
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 
-interface SocialLink {
-    name: "Facebook" | "Instagram" | "LinkedIn";
-    href: string;
-}
+// Runs before paint in the browser (no flash of un-animated text), safe during SSR.
+const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
-interface ProcessStep {
-    title: string;
-    description: string;
-    icon: string;
-}
+/* =====================================================================
+   1. CONFIG
+   ===================================================================== */
 
-interface FormData {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
-    service: string;
-    message: string;
-}
+const OFFICE_ADDRESS =
+  "Empire Ae IT Services, Transasia Cyber Park, Infopark Phase 2, Kochi, Kerala 682303, India";
 
-type SubmitStatus = "idle" | "sending" | "success" | "error";
-
-/* ---------- Data ---------- */
-
-const contactItems: ContactItem[] = [
-    {
-        label: "Phone",
-        value: "+91 9847980605",
-        href: "tel:+919847980605",
-        icon: "M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z",
-    },
-    {
-        label: "Email",
-        value: "info@empireae.xyz",
-        href: "mailto:info@empireae.xyz",
-        icon: "M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75",
-    },
-    {
-        label: "Response Time",
-        value: "Within 24 hours",
-        icon: "M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z",
-    },
-];
-
-const socialLinks: SocialLink[] = [
-    { name: "Facebook", href: "#" },
-    { name: "Instagram", href: "#" },
-    { name: "LinkedIn", href: "#" },
-];
-
-const serviceOptions: string[] = [
-    "Web Designing",
-    "Web Development",
-    "Mobile App Development",
-    "Hosting & Domain",
-    "Digital Marketing",
-    "E-Commerce Application",
-    "Software Application",
-    "SEO",
-];
-
-const processSteps: ProcessStep[] = [
-    {
-        title: "Initial Consultation",
-        description:
-            "We respond within 24 hours to schedule a free consultation call to understand your requirements.",
-        icon: "M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z",
-    },
-    {
-        title: "Proposal & Strategy",
-        description:
-            "We provide a detailed project proposal outlining the scope, timeline, and strategy tailored for you.",
-        icon: "M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184",
-    },
-    {
-        title: "Project Kickoff",
-        description:
-            "Once approved, our team gets to work immediately, keeping you updated at every milestone.",
-        icon: "M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z",
-    },
-];
-
-const initialForm: FormData = {
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    service: "",
-    message: "",
+const COMPANY: {
+  address: string;
+  /** Text the map embed geocodes. If the pin looks off, try a shorter place name
+   *  such as "Transasia Cyber Park, Infopark Phase 2, Kochi, Kerala 682303, India". */
+  mapQuery: string;
+  /** Optional. Fill in ONLY with coordinates you have verified; the map then uses an
+   *  OpenStreetMap embed with a marker. While null, the map is looked up by address. */
+  coordinates: { lat: number; lng: number } | null;
+} = {
+  address: OFFICE_ADDRESS,
+  mapQuery: OFFICE_ADDRESS,
+  coordinates: null,
 };
 
-/* ---------- Small components ---------- */
+// POST target for the form (JSON body). Keep any secrets on the server side.
+// Example: "/api/contact" backed by a route handler that sends the email.
+const CONTACT_ENDPOINT: string | null = null;
 
-interface OutlineIconProps {
-    path: string;
-    className?: string;
+const SERVICES = [
+  "Website Design & Development",
+  "Web Application Development",
+  "Mobile App Development",
+  "UI/UX Design",
+  "Digital Transformation",
+  "AI & Automation",
+  "E-commerce Development",
+  "Other",
+] as const;
+
+/* =====================================================================
+   2. FORM TYPES, VALIDATION, SUBMISSION
+   ===================================================================== */
+
+type FieldName =
+  | "firstName"
+  | "lastName"
+  | "email"
+  | "phone"
+  | "company"
+  | "service"
+  | "message";
+
+type FormValues = Record<FieldName, string>;
+type FormErrors = Partial<Record<FieldName, string>>;
+type Status = "idle" | "submitting" | "success" | "error";
+
+const FIELD_ORDER: FieldName[] = [
+  "firstName",
+  "lastName",
+  "email",
+  "phone",
+  "company",
+  "service",
+  "message",
+];
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function readValues(form: HTMLFormElement): FormValues {
+  const data = new FormData(form);
+  const get = (k: FieldName) => String(data.get(k) ?? "").trim();
+  return {
+    firstName: get("firstName"),
+    lastName: get("lastName"),
+    email: get("email"),
+    phone: get("phone"),
+    company: get("company"),
+    service: get("service"),
+    message: get("message"),
+  };
 }
 
-function OutlineIcon({ path, className = "h-6 w-6" }: OutlineIconProps): JSX.Element {
-    return (
+function validate(v: FormValues): FormErrors {
+  const e: FormErrors = {};
+  if (!v.firstName) e.firstName = "Please enter your first name.";
+  if (!v.lastName) e.lastName = "Please enter your last name.";
+  if (!v.email) e.email = "Please enter your email address.";
+  else if (!EMAIL_RE.test(v.email)) e.email = "Please enter a valid email address.";
+  if (v.phone) {
+    // International-friendly: optional +, digits, spaces and ().- ; 7 to 15 digits.
+    const digits = v.phone.replace(/\D/g, "");
+    const shapeOk = /^\+?[0-9\s().-]+$/.test(v.phone);
+    if (!shapeOk || digits.length < 7 || digits.length > 15) {
+      e.phone = "Please enter a valid phone number (for example +1 555 123 4567).";
+    }
+  }
+  if (!v.service) e.service = "Please select a service.";
+  if (!v.message) e.message = "Please tell us a little about your project.";
+  return e;
+}
+
+class NotConfiguredError extends Error {}
+
+async function submitContact(values: FormValues): Promise<void> {
+  if (!CONTACT_ENDPOINT) throw new NotConfiguredError();
+  const res = await fetch(CONTACT_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(values),
+  });
+  if (!res.ok) throw new Error(`Request failed (${res.status})`);
+}
+
+/* =====================================================================
+   3. ANIMATED BORDER (dark-blue stroke that draws itself, clockwise)
+   ---------------------------------------------------------------------
+   The control keeps its normal light-gray border. An SVG <path> overlay
+   (pointer-events: none) sits exactly on top of it.
+
+   The direction is defined by the path itself, not by a CSS trick:
+     start at the top-left corner -> top edge, left to right
+     -> right edge, downward -> bottom edge, right to left
+     -> left edge, upward -> back to the start.
+   (See clockwisePath(): arcs use sweep-flag 1, which is clockwise on screen.)
+
+   The stroke is revealed with stroke-dasharray growing from "0 100" to
+   "100 0" (pathLength = 100). A growing dash always starts at the beginning
+   of the path and extends forward, so it can only travel in the path's
+   direction. Focus adds `is-active`, blur removes it, so re-focusing replays
+   the animation from the start. A ResizeObserver keeps the path matched to
+   the real wrapper size. Reduced motion: a static full outline, no animation.
+   ===================================================================== */
+
+const FIELD_RADIUS = 6;
+
+// Rounded-rectangle outline as an explicit path: begins at the top-left
+// corner and runs clockwise (screen coordinates, y grows downward).
+function clockwisePath(w: number, h: number, inset: number, radius: number): string {
+  const x1 = inset;
+  const y1 = inset;
+  const x2 = w - inset;
+  const y2 = h - inset;
+  const r = Math.max(0, Math.min(radius, (x2 - x1) / 2, (y2 - y1) / 2));
+  return [
+    `M ${x1} ${y1 + r}`, // left edge, just below the top-left corner
+    `A ${r} ${r} 0 0 1 ${x1 + r} ${y1}`, // round the top-left corner (clockwise)
+    `H ${x2 - r}`, // top edge: left -> right
+    `A ${r} ${r} 0 0 1 ${x2} ${y1 + r}`,
+    `V ${y2 - r}`, // right edge: top -> bottom
+    `A ${r} ${r} 0 0 1 ${x2 - r} ${y2}`,
+    `H ${x1 + r}`, // bottom edge: right -> left
+    `A ${r} ${r} 0 0 1 ${x1} ${y2 - r}`,
+    `V ${y1 + r}`, // left edge: bottom -> top, back to the start
+  ].join(" ");
+}
+
+function AnimatedBorder({
+  children,
+  invalid,
+}: {
+  children: ReactNode;
+  invalid?: boolean;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  const [active, setActive] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    // offsetWidth/Height ignore ancestor transforms (entrance animations).
+    const measure = () => {
+      const w = el.offsetWidth;
+      const h = el.offsetHeight;
+      setBox((p) => (p.w === w && p.h === h ? p : { w, h }));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className={`ct-ab${active ? " is-active" : ""}${invalid ? " is-invalid" : ""}`}
+      onFocus={() => setActive(true)}
+      onBlur={() => setActive(false)}
+    >
+      {children}
+      {box.w > 0 && (
         <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={1.6}
-            className={className}
-            aria-hidden="true"
+          className="ct-ab-svg"
+          width={box.w}
+          height={box.h}
+          viewBox={`0 0 ${box.w} ${box.h}`}
+          aria-hidden="true"
+          focusable="false"
         >
-            <path strokeLinecap="round" strokeLinejoin="round" d={path} />
+          <path
+            className="ct-ab-stroke"
+            d={clockwisePath(box.w, box.h, 1, FIELD_RADIUS - 1)}
+            pathLength={100}
+            fill="none"
+          />
         </svg>
-    );
+      )}
+    </div>
+  );
 }
 
+/* =====================================================================
+   4. FIELD COMPONENTS
+   ===================================================================== */
 
+function FieldShell({
+  id,
+  label,
+  required,
+  error,
+  children,
+}: {
+  id: string;
+  label: string;
+  required?: boolean;
+  error?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="ct-field ct-reveal">
+      <label htmlFor={id} className="ct-label">
+        {label}
+        {required ? (
+          <span className="ct-req" aria-hidden="true"> *</span>
+        ) : (
+          <span className="ct-opt"> (optional)</span>
+        )}
+      </label>
+      <AnimatedBorder invalid={!!error}>{children}</AnimatedBorder>
+      {error && (
+        <p id={`${id}-err`} className="ct-error" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
 
-function SocialIcon({ name }: { name: SocialLink["name"] }): JSX.Element {
+type FieldBase = {
+  name: FieldName;
+  label: string;
+  required?: boolean;
+  error?: string;
+};
 
-    const common = {
-        xmlns: "http://www.w3.org/2000/svg",
-        viewBox: "0 0 24 24",
-        className: "h-6 w-6",
-        "aria-hidden": true as const,
-    };
+function TextField({
+  name,
+  label,
+  required,
+  error,
+  type = "text",
+  autoComplete,
+  placeholder,
+}: FieldBase & {
+  type?: "text" | "email" | "tel";
+  autoComplete?: string;
+  placeholder?: string;
+}) {
+  const id = useId();
+  return (
+    <FieldShell id={id} label={label} required={required} error={error}>
+      <input
+        id={id}
+        name={name}
+        type={type}
+        inputMode={type === "tel" ? "tel" : undefined}
+        autoComplete={autoComplete}
+        placeholder={placeholder}
+        className="ct-control"
+        aria-required={required ? true : undefined}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${id}-err` : undefined}
+      />
+    </FieldShell>
+  );
+}
 
+function SelectField({ name, label, required, error }: FieldBase) {
+  const id = useId();
+  return (
+    <FieldShell id={id} label={label} required={required} error={error}>
+      <select
+        id={id}
+        name={name}
+        defaultValue=""
+        className="ct-control ct-select"
+        aria-required={required ? true : undefined}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${id}-err` : undefined}
+      >
+        <option value="">Select a service</option>
+        {SERVICES.map((s) => (
+          <option key={s} value={s}>
+            {s}
+          </option>
+        ))}
+      </select>
+    </FieldShell>
+  );
+}
 
-    if (name === "Facebook") {
-        return (
-            <svg {...common} fill="currentColor">
-                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-            </svg>
-        );
+function TextAreaField({
+  name,
+  label,
+  required,
+  error,
+  placeholder,
+}: FieldBase & { placeholder?: string }) {
+  const id = useId();
+  return (
+    <FieldShell id={id} label={label} required={required} error={error}>
+      <textarea
+        id={id}
+        name={name}
+        rows={5}
+        placeholder={placeholder}
+        className="ct-control ct-textarea"
+        aria-required={required ? true : undefined}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${id}-err` : undefined}
+      />
+    </FieldShell>
+  );
+}
+
+/* =====================================================================
+   5. SECTIONS
+   ===================================================================== */
+
+function PinIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z" />
+      <circle cx="12" cy="10" r="3" />
+    </svg>
+  );
+}
+
+const HERO_LINES = ["Let's Build Something", "Meaningful Together."];
+
+// Heading is read as one natural sentence via aria-label; the per-character
+// spans are decorative (aria-hidden), so the text is never duplicated for
+// assistive tech. Words are inline-block so wrapping only happens between words.
+function SplitHeading({ lines }: { lines: string[] }) {
+  return (
+    <h1 id="ct-hero-title" className="ct-h1" aria-label={lines.join(" ")}>
+      {lines.map((line, li) => (
+        <span key={li} className="ct-line" aria-hidden="true">
+          {line.split(" ").map((word, wi) => (
+            <span key={wi}>
+              {wi > 0 ? " " : ""}
+              <span className="ct-word">
+                {Array.from(word).map((ch, ci) => (
+                  <span key={ci} className="ct-char">
+                    {ch}
+                  </span>
+                ))}
+              </span>
+            </span>
+          ))}
+          {li < lines.length - 1 ? " " : ""}
+        </span>
+      ))}
+    </h1>
+  );
+}
+
+function ContactHero() {
+  return (
+    <section className="ct-hero" aria-labelledby="ct-hero-title">
+      <div className="ct-hero-inner">
+        <p className="ct-eyebrow">
+          <span className="ct-bar" aria-hidden="true" />
+          LET&apos;S START A CONVERSATION
+        </p>
+        <SplitHeading lines={HERO_LINES} />
+        <p className="ct-hero-p">
+          Have an idea, a challenge, or a project in mind? We&apos;d love to hear from you.
+          Let&apos;s explore how we can turn your vision into something meaningful.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function ContactInformation() {
+  return (
+    <div className="ct-left">
+      <p className="ct-kicker">LET&apos;S CONNECT</p>
+      <h2 className="ct-h2">
+        Have an Idea?
+        <br className="ct-br" /> Let&apos;s Make It Happen.
+      </h2>
+      <p className="ct-p">
+        Tell us what you&apos;re envisioning, and let&apos;s explore how we can bring it to life.
+      </p>
+    </div>
+  );
+}
+
+function ContactForm() {
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [status, setStatus] = useState<Status>("idle");
+  const [formError, setFormError] = useState<string | null>(null);
+  const successRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (status === "success") successRef.current?.focus();
+  }, [status]);
+
+  const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (status === "submitting") return; // no duplicate submissions
+
+    const form = e.currentTarget;
+    const values = readValues(form);
+    const found = validate(values);
+    setErrors(found);
+    setFormError(null);
+
+    const firstInvalid = FIELD_ORDER.find((k) => found[k]);
+    if (firstInvalid) {
+      (form.elements.namedItem(firstInvalid) as HTMLElement | null)?.focus();
+      return;
     }
 
-
-
-    if (name === "Instagram") {
-        return (
-            <svg
-                {...common}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={1.8}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-            >
-                <rect x="3" y="3" width="18" height="18" rx="5" />
-                <circle cx="12" cy="12" r="4.2" />
-                <circle
-                    cx="17.5"
-                    cy="6.5"
-                    r="1"
-                    fill="currentColor"
-                    stroke="none"
-                />
-            </svg>
-        );
+    setStatus("submitting");
+    try {
+      await submitContact(values);
+      setStatus("success");
+    } catch (err) {
+      setStatus("error");
+      setFormError(
+        err instanceof NotConfiguredError
+          ? "This form isn't connected to a delivery service yet, so your message was not sent. Please contact us by email or phone instead."
+          : "Something went wrong and your message was not sent. Please try again in a moment."
+      );
     }
+  };
 
+  // Clear a field's error as soon as the user edits it.
+  const onChange = (e: FormEvent<HTMLFormElement>) => {
+    const name = (e.target as HTMLInputElement).name as FieldName;
+    if (name && errors[name]) setErrors((p) => ({ ...p, [name]: undefined }));
+  };
 
+  if (status === "success") {
     return (
-        <svg {...common} fill="currentColor">
-            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-        </svg>
+      <div className="ct-card ct-success" ref={successRef} tabIndex={-1} role="status">
+        <span className="ct-success-mark" aria-hidden="true" />
+        <h2 className="ct-h3">Thank you for reaching out!</h2>
+        <p className="ct-p">Your message has been received. We&apos;ll be in touch soon.</p>
+        <button type="button" className="ct-ghost" onClick={() => setStatus("idle")}>
+          Send another message
+        </button>
+      </div>
     );
+  }
+
+  return (
+    <div className="ct-card">
+      <h2 className="ct-h3">Tell Us About Your Project</h2>
+      <p className="ct-sub">Share a few details and we&apos;ll get back to you.</p>
+
+      <form onSubmit={onSubmit} onChange={onChange} noValidate aria-label="Contact form">
+        <div className="ct-row2">
+          <TextField
+            name="firstName"
+            label="First Name"
+            required
+            autoComplete="given-name"
+            placeholder="Jane"
+            error={errors.firstName}
+          />
+          <TextField
+            name="lastName"
+            label="Last Name"
+            required
+            autoComplete="family-name"
+            placeholder="Doe"
+            error={errors.lastName}
+          />
+        </div>
+        <TextField
+          name="email"
+          label="Email Address"
+          type="email"
+          required
+          autoComplete="email"
+          placeholder="you@company.com"
+          error={errors.email}
+        />
+        <TextField
+          name="phone"
+          label="Phone Number"
+          type="tel"
+          autoComplete="tel"
+          placeholder="+1 555 123 4567"
+          error={errors.phone}
+        />
+        <TextField
+          name="company"
+          label="Company Name"
+          autoComplete="organization"
+          placeholder="Your company"
+          error={errors.company}
+        />
+        <SelectField name="service" label="Service Interested In" required error={errors.service} />
+        <TextAreaField
+          name="message"
+          label="Project Message"
+          required
+          placeholder="Tell us a little about your project, goals, or challenges..."
+          error={errors.message}
+        />
+
+        {formError && (
+          <p className="ct-form-error" role="alert">
+            {formError}
+          </p>
+        )}
+
+        <button
+          type="submit"
+          className="ct-submit ct-reveal"
+          disabled={status === "submitting"}
+          aria-busy={status === "submitting"}
+        >
+          {status === "submitting" ? (
+            <>
+              <span className="ct-spinner" aria-hidden="true" />
+              Sending...
+            </>
+          ) : (
+            "Send Message"
+          )}
+        </button>
+      </form>
+    </div>
+  );
 }
 
+function CompanyLocation() {
+  const { address, mapQuery, coordinates } = COMPANY;
 
+  // Interactive embed, no API key. With verified coordinates: OpenStreetMap + marker.
+  // Otherwise the map is looked up from the exact address text.
+  const embedSrc = coordinates
+    ? `https://www.openstreetmap.org/export/embed.html?bbox=${coordinates.lng - 0.008},${coordinates.lat - 0.005},${coordinates.lng + 0.008},${coordinates.lat + 0.005}&layer=mapnik&marker=${coordinates.lat},${coordinates.lng}`
+    : `https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}&output=embed`;
 
+  const directionsHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 
+  return (
+    <section className="ct-loc-section" aria-labelledby="ct-map-title">
+      <div className="ct-container ct-map-block">
+        <p className="ct-kicker">FIND US</p>
+        <h2 id="ct-map-title" className="ct-h2">
+          Let&apos;s Meet in Person.
+        </h2>
+        <p className="ct-p">
+          Great ideas often begin with a conversation. Visit us at our office in Infopark Phase 2,
+          Kochi.
+        </p>
 
-const inputClass =
-    "w-full rounded-xl border border-slate-200 bg-[#f6f9fb] px-5 py-4 text-base text-[#101d32] placeholder:text-slate-400 outline-none transition focus:border-[#20afca] focus:bg-white focus:ring-4 focus:ring-[#20afca]/15";
+        <div className="ct-map">
+          <iframe
+            title="Map showing the Empire Ae IT Services office at Transasia Cyber Park, Infopark Phase 2, Kochi"
+            src={embedSrc}
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+          />
+        </div>
 
-const labelClass = "mb-2 block text-sm font-bold text-[#101d32]";
-
-/* ---------- Page ---------- */
-
-export default function Contact(): JSX.Element {
-    const [form, setForm] = useState<FormData>(initialForm);
-    const [status, setStatus] = useState<SubmitStatus>("idle");
-
-    const handleChange = (
-        e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
-    ): void => {
-        const { name, value } = e.target;
-        setForm((prev) => ({ ...prev, [name]: value }));
-    };
-
-    const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
-        e.preventDefault();
-        setStatus("sending");
-
-        try {
-            // Replace with your real endpoint (API route, Formspree, EmailJS, etc.)
-            const res = await fetch("/api/contact", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(form),
-            });
-
-            if (!res.ok) throw new Error("Request failed");
-
-            setStatus("success");
-            setForm(initialForm);
-        } catch {
-            setStatus("error");
-        }
-    };
-
-    return (
-        <main className="min-h-screen">
-            {/* Hero Section */}
-            <section className="flex min-h-120 flex-col items-center bg-linear-to-b from-[#f1fbff] to-white px-6 pb-20 pt-20 text-center">
-                {/* Breadcrumb */}
-                <div className="mb-7 flex items-center gap-3 text-sm">
-                    <span className="font-medium text-[#20afca]">Home</span>
-                    <span className="text-slate-400">›</span>
-                    <span className="text-slate-500">Contact</span>
-                </div>
-
-                {/* Section Label */}
-                <div className="mb-6 rounded-full border border-[#bcecf5] px-5 py-2 text-xs font-semibold tracking-widest text-[#159fba]">
-                    <span className="mr-2">●</span>
-                    GET IN TOUCH
-                </div>
-
-                {/* Heading */}
-                <h1 className="max-w-5xl text-4xl font-extrabold leading-tight tracking-tight text-[#25b0cc] sm:text-5xl md:text-7xl">
-                    <span className="text-[#101d32]">Let&apos;s</span> Start a
-                    Conversation
-                </h1>
-
-                {/* Description */}
-                <p className="mt-8 max-w-2xl text-lg leading-8 text-slate-600 sm:text-xl">
-                    Have a project in mind? We&apos;d love to hear from you. Send us a{" "}
-                    <br className="hidden md:block" /> message and we&apos;ll get back to
-                    you within 24 hours.
-                </p>
-            </section>
-
-            {/* Contact Info + Form */}
-            <section className="bg-[#f6fafc] px-8 py-20 sm:px-8 lg:px-12 lg:py-28">
-                <div className="mx-auto grid w-full max-w-300 gap-12 lg:grid-cols-2 lg:gap-24">
-                    {/* Left: Contact Information */}
-                    <div>
-                        <h2 className="text-3xl font-extrabold tracking-tight text-[#101d32] md:text-4xl">
-                            Contact <span className="text-[#20afca]">Information</span>
-                        </h2>
-
-                        <p className="mt-6 max-w-xl text-lg leading-8 text-slate-600">
-                            Ready to take your business to the next level? Reach out to our
-                            team and let&apos;s make it happen.
-                        </p>
-
-
-                        <div className="mt-10 space-y-5">
-                            {contactItems.map((item) => (
-                                <div
-                                    key={item.label}
-                                    className="group flex items-center gap-4 rounded-2xl border border-slate-200 bg-[#f3f7fa] px-5 py-5 transition-all duration-300 hover:border-[#20afca] hover:bg-white hover:shadow-md hover:shadow-[#20afca]/10"
-                                >
-                                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#e3f4f8] text-[#17b1cf] transition-all duration-300 group-hover:bg-[#20afca] group-hover:text-white">
-                                        <OutlineIcon path={item.icon} className="h-5 w-5" />
-                                    </div>
-
-                                    <div className="min-w-0">
-                                        <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
-                                            {item.label}
-                                        </p>
-
-                                        {item.href ? (
-                                            <a
-                                                href={item.href}
-                                                className="mt-1 block break-words text-base font-medium text-[#101d32] transition-colors duration-300 group-hover:text-[#159fba]"
-                                            >
-                                                {item.value}
-                                            </a>
-                                        ) : (
-                                            <p className="mt-1 text-base font-medium text-[#101d32] transition-colors duration-300 group-hover:text-[#159fba]">
-                                                {item.value}
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-
-                        <div className="mt-12">
-                            <p className="mb-5 text-xs font-bold uppercase tracking-widest text-slate-500">
-                                Follow Us
-                            </p>
-
-
-
-
-
-                            <div className="flex flex-wrap gap-3">
-                                {socialLinks.map((social) => (
-                                    <a
-                                        key={social.name}
-                                        href={social.href}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-2.5 rounded-full border border-slate-200 bg-[#f6fafc] px-6 py-3 text-base font-medium text-slate-500 no-underline transition-all duration-300 hover:-translate-y-0.5 hover:border-[#20afca] hover:bg-[#20afca] hover:text-white hover:shadow-md"
-                                    >
-                                        <SocialIcon name={social.name} />
-                                        {social.name}
-                                    </a>
-                                ))}
-                            </div>
-
-
-
-
-                        </div>
-                    </div>
-
-                    {/* Right: Form */}
-                    <div className="rounded-4xl border border-slate-100 bg-white p-8 shadow-xl shadow-slate-200/60 sm:p-12">
-                        <h3 className="text-3xl font-extrabold tracking-tight text-[#101d32]">
-                            Send Us a Message
-                        </h3>
-                        <p className="mt-3 text-base text-slate-500">
-                            Fill out the form below and our team will get back to you
-                            promptly.
-                        </p>
-
-                        <form onSubmit={handleSubmit} className="mt-10 space-y-6">
-                            <div className="grid gap-6 sm:grid-cols-2">
-                                <div>
-                                    <label htmlFor="firstName" className={labelClass}>
-                                        First Name *
-                                    </label>
-                                    <input
-                                        id="firstName"
-                                        name="firstName"
-                                        type="text"
-                                        required
-                                        placeholder="John"
-                                        value={form.firstName}
-                                        onChange={handleChange}
-                                        className={inputClass}
-                                    />
-                                </div>
-
-                                <div>
-                                    <label htmlFor="lastName" className={labelClass}>
-                                        Last Name *
-                                    </label>
-                                    <input
-                                        id="lastName"
-                                        name="lastName"
-                                        type="text"
-                                        required
-                                        placeholder="Doe"
-                                        value={form.lastName}
-                                        onChange={handleChange}
-                                        className={inputClass}
-                                    />
-                                </div>
-                            </div>
-
-                            <div>
-                                <label htmlFor="email" className={labelClass}>
-                                    Email Address *
-                                </label>
-                                <input
-                                    id="email"
-                                    name="email"
-                                    type="email"
-                                    required
-                                    placeholder="john@example.com"
-                                    value={form.email}
-                                    onChange={handleChange}
-                                    className={inputClass}
-                                />
-                            </div>
-
-                            <div>
-                                <label htmlFor="phone" className={labelClass}>
-                                    Phone Number
-                                </label>
-                                <input
-                                    id="phone"
-                                    name="phone"
-                                    type="tel"
-                                    placeholder="+91 98765 43210"
-                                    value={form.phone}
-                                    onChange={handleChange}
-                                    className={inputClass}
-                                />
-                            </div>
-
-                            <div>
-                                <label htmlFor="service" className={labelClass}>
-                                    Service Interested In
-                                </label>
-                                <select
-                                    id="service"
-                                    name="service"
-                                    value={form.service}
-                                    onChange={handleChange}
-                                    className={`appearance-none ${inputClass} ${form.service === "" ? "text-slate-400" : ""
-                                        }`}
-                                >
-                                    <option value="">Select a service…</option>
-                                    {serviceOptions.map((option) => (
-                                        <option key={option} value={option}>
-                                            {option}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div>
-                                <label htmlFor="message" className={labelClass}>
-                                    Message *
-                                </label>
-                                <textarea
-                                    id="message"
-                                    name="message"
-                                    rows={5}
-                                    required
-                                    placeholder="Tell us about your project…"
-                                    value={form.message}
-                                    onChange={handleChange}
-                                    className={`${inputClass} resize-y`}
-                                />
-                            </div>
-
-
-
-                            <button
-                                type="submit"
-                                disabled={status === "sending"}
-                                className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#2cb9d6] px-8 py-4 text-base font-bold text-white shadow-lg shadow-[#20afca]/30 transition hover:bg-[#20afca] disabled:cursor-not-allowed disabled:opacity-70"
-                            >
-                                {status === "sending" ? "Sending…" : "Send Message"}
-
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    width="18"
-                                    height="18"
-                                    aria-hidden="true"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                                    />
-                                </svg>
-                            </button>
-
-
-                            {status === "success" && (
-                                <p role="status" className="text-center text-sm font-medium text-emerald-600">
-                                    Thanks! Your message has been sent. We&apos;ll reply within 24 hours.
-                                </p>
-                            )}
-                            {status === "error" && (
-                                <p role="alert" className="text-center text-sm font-medium text-red-600">
-                                    Something went wrong. Please try again or email us directly.
-                                </p>
-                            )}
-                        </form>
-                    </div>
-                </div>
-            </section>
-
-            {/* What Happens After You Contact Us */}
-
-            <section className="border-b-4 border-[#20afca] bg-[#f6fafc] px-6 py-20 text-center">
-                <div className="mx-auto max-w-6xl">
-                    <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#bcecf5] bg-[#eefafd] px-4 py-1.5 text-[11px] font-bold uppercase tracking-[2px] text-[#159fba]">
-                        <span className="h-1.5 w-1.5 rounded-full bg-[#20afca]" />
-                        Why Work With Us
-                    </div>
-
-                    <h2 className="text-3xl font-extrabold tracking-tight text-[#101d32] md:text-5xl">
-                        What Happens After{" "}
-                        <span className="text-[#20afca]">You Contact Us</span>
-                    </h2>
-
-                    <div className="mt-16 flex flex-col items-center gap-10 md:flex-row md:items-start md:justify-center md:gap-0">
-                        {processSteps.map((step, index) => (
-                            <div
-                                key={step.title}
-                                className="flex flex-col items-center md:flex-row md:items-start"
-                            >
-                                <div className="flex w-60 flex-col items-center px-2">
-                                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#20afca] text-white shadow-lg shadow-[#20afca]/30">
-                                        <OutlineIcon path={step.icon} className="h-6 w-6" />
-                                    </div>
-
-                                    <h3 className="mt-5 text-lg font-bold text-[#101d32]">
-                                        {step.title}
-                                    </h3>
-
-                                    <p className="mt-2 text-sm leading-7 text-slate-600">
-                                        {step.description}
-                                    </p>
-                                </div>
-
-                                {index < processSteps.length - 1 && (
-                                    <span
-                                        aria-hidden="true"
-                                        className="mx-5 hidden pt-6 text-xl text-[#20afca] md:block"
-                                    >
-                                        →
-                                    </span>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
-        </main>
-    );
+        <div className="ct-map-foot">
+          <p className="ct-map-address">
+            <span className="ct-pin">
+              <PinIcon />
+            </span>
+            <span>{address}</span>
+          </p>
+          <a className="ct-ghost" href={directionsHref} target="_blank" rel="noopener noreferrer">
+            Open in Google Maps
+            <span className="ct-sr">(opens in a new tab)</span>
+          </a>
+        </div>
+      </div>
+    </section>
+  );
 }
+
+/* =====================================================================
+   6. PAGE
+   ===================================================================== */
+
+export default function ContactPage() {
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useIsoLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+
+    gsap.registerPlugin(ScrollTrigger);
+
+    // Reduced motion: skip every entrance animation (content is visible by default).
+    const mm = gsap.matchMedia();
+
+    mm.add("(prefers-reduced-motion: no-preference)", () => {
+      const ctx = gsap.context(() => {
+        // Hero: eyebrow fades in, heading reveals letter by letter, then the description.
+        // Runs once on load; reverted automatically on cleanup (Strict Mode safe).
+        const chars = gsap.utils.toArray<HTMLElement>(".ct-char");
+        gsap
+          .timeline({ defaults: { ease: "power3.out" } })
+          .from(".ct-eyebrow", { opacity: 0, duration: 0.6, ease: "power1.out" })
+          .from(chars, { opacity: 0, yPercent: 60, duration: 0.55, stagger: 0.03 }, 0.35)
+          .from(".ct-hero-p", { opacity: 0, y: 16, duration: 0.7 }, 1.0);
+
+        // Contact content: ONE timeline, ONE trigger, plays once. The trigger is the
+        // grid (not the section) so it fires as the content itself approaches the viewport,
+        // which matters now that the section's top edge already overlaps the hero.
+        gsap
+          .timeline({
+            defaults: { ease: "power2.out", clearProps: "opacity,transform" },
+            scrollTrigger: { trigger: ".ct-grid", start: "top 85%", once: true },
+          })
+          .from(".ct-left > *", { opacity: 0, y: 24, duration: 0.7, stagger: 0.1 }, 0)
+          .from(".ct-card", { opacity: 0, y: 24, duration: 0.7 }, 0.1)
+          .from(".ct-card .ct-reveal", { opacity: 0, y: 14, duration: 0.5, stagger: 0.06 }, 0.3);
+
+        // Subtle scroll-linked lift of the content as the white surface rises.
+        // It moves .ct-grid only (never the rounded section itself), so no gap can
+        // open between the hero and the white surface, and it never shares an
+        // element with the entrance tweens above.
+        gsap.fromTo(
+          ".ct-grid",
+          { y: 28 },
+          {
+            y: 0,
+            ease: "none",
+            scrollTrigger: { trigger: ".ct-main", start: "top bottom", end: "top 30%", scrub: true },
+          }
+        );
+
+        // Map block.
+        gsap.from(".ct-map-block > *", {
+          opacity: 0,
+          y: 20,
+          duration: 0.6,
+          stagger: 0.08,
+          ease: "power2.out",
+          clearProps: "opacity,transform",
+          scrollTrigger: { trigger: ".ct-loc-section", start: "top 80%", once: true },
+        });
+      }, root);
+
+      return () => ctx.revert();
+    });
+
+    return () => mm.revert();
+  }, []);
+
+  return (
+    <div className="ct-page" ref={rootRef}>
+      <style dangerouslySetInnerHTML={{ __html: STYLES }} />
+
+      <ContactHero />
+
+      <section className="ct-main" aria-label="Contact Empire">
+        <div className="ct-container ct-grid">
+          <ContactInformation />
+          <ContactForm />
+        </div>
+      </section>
+
+      <CompanyLocation />
+    </div>
+  );
+}
+
+/* =====================================================================
+   7. STYLES (scoped with the "ct-" prefix)
+   ===================================================================== */
+
+const STYLES = `
+.ct-page {
+  --ct-text: #000000;
+  --ct-navy: #000000;        /* headings: black */
+  --ct-stroke: #141823;      /* dark blue: used ONLY by the animated input border */
+  --ct-line: #e5e7eb;        /* neutral hairline borders */
+  --ct-r: ${FIELD_RADIUS}px;
+  --ct-overlap: 120px;       /* how far the white section rises over the hero (desktop) */
+  --ct-radius: 64px;         /* upper corner radius of the white section (desktop) */
+  --ct-nav: 72px;            /* clearance for a fixed navbar; set to 0px if your navbar is not fixed */
+  background: #ffffff;
+  color: var(--ct-text);
+  overflow-x: clip;
+}
+.ct-page *, .ct-page *::before, .ct-page *::after { box-sizing: border-box; }
+.ct-sr {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+.ct-container { width: 100%; max-width: 1240px; margin: 0 auto; }
+
+/* ---------- Hero ---------- */
+.ct-hero {
+  background: #000000;
+  color: #ffffff;
+  position: relative;
+  z-index: 1;
+  padding: calc(var(--ct-nav) + clamp(40px, 5vw, 64px)) 24px calc(var(--ct-overlap) + clamp(48px, 6vw, 80px));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.ct-hero-inner { max-width: 900px; margin: 0 auto; }
+.ct-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 20px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  color: #ffffff;
+}
+.ct-bar { display: inline-block; width: 20px; height: 2px; background: #ffffff; }
+.ct-h1 {
+  margin: 0;
+  font-size: clamp(2.25rem, 4.6vw + 0.75rem, 4.5rem);
+  line-height: 1.08;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: #ffffff;
+}
+.ct-line { display: block; }
+.ct-word { display: inline-block; white-space: nowrap; }
+.ct-char { display: inline-block; will-change: transform, opacity; }
+.ct-hero-p {
+  max-width: 700px;
+  margin: 24px auto 0;
+  font-size: clamp(16px, 1.1vw + 12px, 18px);
+  line-height: 1.65;
+  color: #ffffff;
+}
+
+/* ---------- Main two-column section ---------- */
+/* The white surface rises over the bottom of the black hero. It stays in normal
+   document flow (negative top margin only), so page height, the map and the
+   footer position are unaffected. Both upper corners share one radius; the
+   lower corners stay square so it flows straight into the map section. */
+.ct-main {
+  position: relative;
+  z-index: 2;
+  margin-top: calc(var(--ct-overlap) * -1);
+  background: #ffffff;
+  border-radius: var(--ct-radius) var(--ct-radius) 0 0;
+  padding: clamp(64px, 9vw, 120px) 24px;
+}
+.ct-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 48fr) minmax(0, 52fr);
+  gap: clamp(40px, 6vw, 90px);
+  align-items: center;
+}
+.ct-kicker {
+  margin: 0 0 18px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  color: #000000;
+}
+.ct-h2 {
+  margin: 0 0 24px;
+  font-size: clamp(2.25rem, 2vw + 1.6rem, 3.5rem);
+  line-height: 1.12;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ct-navy);
+}
+.ct-p {
+  max-width: 500px;
+  margin: 0 0 18px;
+  font-size: clamp(16px, 0.5vw + 14px, 18px);
+  line-height: 1.7;
+  color: #000000;
+}
+
+.ct-pin { display: inline-flex; margin-top: 3px; color: #000000; flex-shrink: 0; }
+
+/* ---------- Form card ---------- */
+.ct-card {
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid var(--ct-line);
+  border-radius: 8px;
+  padding: clamp(24px, 3vw, 36px);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 14px 32px -18px rgba(0, 0, 0, 0.14);
+}
+.ct-h3 { margin: 0 0 6px; font-size: 24px; line-height: 1.25; font-weight: 700; color: var(--ct-navy); }
+.ct-sub { margin: 0 0 26px; font-size: 15px; line-height: 1.55; color: #000000; }
+
+.ct-row2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; }
+.ct-field { margin-bottom: 18px; }
+.ct-label { display: block; margin-bottom: 7px; font-size: 14px; font-weight: 600; color: var(--ct-text); }
+.ct-req { color: var(--ct-text); }
+.ct-opt { font-weight: 400; color: #000000; }
+
+/* Field + animated border */
+.ct-ab { position: relative; }
+.ct-control {
+  display: block;
+  width: 100%;
+  padding: 13px 14px;
+  background: #ffffff;
+  border: 1px solid #d5dae1;
+  border-radius: var(--ct-r);
+  font: inherit;
+  font-size: 16px; /* 16px prevents iOS zoom on focus */
+  line-height: 1.4;
+  color: var(--ct-text);
+  outline: none;
+  transition: border-color 200ms ease;
+}
+.ct-control::placeholder { color: #000000; opacity: 0.5; }
+.ct-control:focus { border-color: #d5dae1; } /* keeps the gray border so the blue line is clearly visible */
+.ct-textarea { min-height: 140px; resize: vertical; }
+.ct-select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 42px;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23000000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+}
+/* Validation: solid black border + a text message, never the blue focus stroke. */
+.ct-ab.is-invalid .ct-control { border-color: #000000; }
+
+.ct-ab-svg { position: absolute; top: 0; left: 0; pointer-events: none; overflow: visible; }
+.ct-ab-stroke {
+  fill: none;
+  stroke: var(--ct-stroke);
+  stroke-width: 2;
+  stroke-linecap: butt;
+  stroke-linejoin: round;
+  stroke-dasharray: 0 100; /* nothing drawn until focus */
+}
+/* The dash grows from the START of the path (top-left) forward = clockwise. */
+.ct-ab.is-active .ct-ab-stroke { animation: ct-draw 780ms cubic-bezier(0.65, 0, 0.35, 1) forwards; }
+@keyframes ct-draw {
+  from { stroke-dasharray: 0 100; }
+  to   { stroke-dasharray: 100 0; }
+}
+
+.ct-error {
+  margin: 7px 0 0;
+  font-size: 13px;
+  line-height: 1.4;
+  font-weight: 600;
+  color: #000000;
+}
+.ct-error::before { content: "! "; font-weight: 700; }
+.ct-form-error {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #000000;
+  background: #ffffff;
+  border: 1px solid #000000;
+  border-radius: var(--ct-r);
+}
+
+.ct-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 52px;
+  margin-top: 6px;
+  border: 0;
+  border-radius: var(--ct-r);
+  background: var(--ct-text);
+  color: #ffffff;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 250ms ease, color 250ms ease;
+}
+.ct-submit:hover:not(:disabled) { background: #141823; color: #ffffff; box-shadow: inset 0 0 0 1px #000000; }
+.ct-submit:focus-visible { outline: 2px solid #000000; outline-offset: 3px; }
+.ct-submit:disabled { opacity: 0.75; cursor: progress; }
+.ct-spinner {
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid currentColor; border-right-color: transparent;
+  animation: ct-spin 700ms linear infinite;
+}
+@keyframes ct-spin { to { transform: rotate(360deg); } }
+
+.ct-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: transparent;
+  color: var(--ct-text);
+  border: 1px solid var(--ct-text);
+  border-radius: var(--ct-r);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 250ms ease, color 250ms ease, border-color 250ms ease;
+}
+.ct-ghost:hover { background: #000000; border-color: #000000; color: #ffffff; }
+.ct-ghost:focus-visible { outline: 2px solid #000000; outline-offset: 3px; }
+
+/* Success */
+.ct-success { outline: none; }
+.ct-success .ct-p { margin-bottom: 24px; }
+.ct-success-mark { display: block; width: 28px; height: 3px; margin-bottom: 20px; background: #000000; }
+
+/* ---------- Map ---------- */
+.ct-loc-section { background: #ffffff; padding: 0 24px clamp(64px, 9vw, 120px); }
+.ct-map-block { border-top: 1px solid var(--ct-line); padding-top: clamp(56px, 7vw, 96px); }
+.ct-map {
+  position: relative;
+  margin-top: 32px;
+  height: clamp(300px, 38vw, 480px);
+  border: 1px solid var(--ct-line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #ffffff;
+}
+.ct-map iframe { display: block; width: 100%; height: 100%; border: 0; }
+.ct-map-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 20px;
+}
+.ct-map-address { display: flex; gap: 10px; align-items: flex-start; margin: 0; font-size: 16px; line-height: 1.5; color: var(--ct-text); }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1024px) {
+  .ct-page { --ct-overlap: 85px; --ct-radius: 46px; }
+}
+@media (max-width: 900px) {
+  .ct-grid { grid-template-columns: minmax(0, 1fr); gap: 56px; }
+}
+@media (max-width: 640px) {
+  .ct-page { --ct-overlap: 50px; --ct-radius: 32px; }
+  .ct-main, .ct-loc-section, .ct-hero { padding-left: 20px; padding-right: 20px; }
+  .ct-br { display: none; }
+  .ct-line { display: inline; } /* natural wrapping on small screens */
+  .ct-row2 { grid-template-columns: minmax(0, 1fr); }
+  .ct-map-foot .ct-ghost { width: 100%; justify-content: center; }
+}
+
+/* ---------- Reduced motion: static blue outline, no travelling animation ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .ct-ab.is-active .ct-ab-stroke { animation: none; stroke-dasharray: 100 0; }
+  .ct-spinner { animation-duration: 1.6s; }
+  .ct-submit, .ct-ghost, .ct-control { transition: none; }
+}
+`;
