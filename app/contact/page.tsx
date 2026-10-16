@@ -1,17 +1,23 @@
 "use client";
 
 /* =====================================================================
-   Empire: Contact page (single file)
+   Empire: Contact page (single file) with EmailJS
    Save as: app/contact/page.tsx
    ---------------------------------------------------------------------
-   Renders only the page body. The existing Navbar and Footer come from
-   your layout, so they are untouched and not duplicated.
+   Install once:   npm install @emailjs/browser
+   Create .env.local in the project root (restart the dev server after):
 
-   CONFIGURATION (see COMPANY and CONTACT_ENDPOINT below):
-   - COMPANY holds the verified office address used by the map section.
-   - CONTACT_ENDPOINT is the form's delivery endpoint. While it is null
-     the form validates, then shows an honest "not connected" error
-     instead of a fake success message.
+     NEXT_PUBLIC_EMAILJS_SERVICE_ID=service_xxxxxxx
+     NEXT_PUBLIC_EMAILJS_TEMPLATE_ID=template_xxxxxxx
+     NEXT_PUBLIC_EMAILJS_PUBLIC_KEY=xxxxxxxxxxxxxxxx
+
+   EmailJS template variables used (put these in your template):
+     {{from_name}}  {{from_email}}  {{reply_to}}  {{phone}}
+     {{company}}    {{service}}     {{message}}
+
+   Optional: to use a downloaded animated icon (GIF / WebP / PNG from
+   Flaticon) on the success screen, put it in /public and set
+   SUCCESS_ICON_SRC below, for example "/images/message-sent.gif".
    ===================================================================== */
 
 import {
@@ -25,6 +31,7 @@ import {
 } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import emailjs from "@emailjs/browser";
 
 // Runs before paint in the browser (no flash of un-animated text), safe during SSR.
 const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
@@ -38,11 +45,7 @@ const OFFICE_ADDRESS =
 
 const COMPANY: {
   address: string;
-  /** Text the map embed geocodes. If the pin looks off, try a shorter place name
-   *  such as "Transasia Cyber Park, Infopark Phase 2, Kochi, Kerala 682303, India". */
   mapQuery: string;
-  /** Optional. Fill in ONLY with coordinates you have verified; the map then uses an
-   *  OpenStreetMap embed with a marker. While null, the map is looked up by address. */
   coordinates: { lat: number; lng: number } | null;
 } = {
   address: OFFICE_ADDRESS,
@@ -50,9 +53,15 @@ const COMPANY: {
   coordinates: null,
 };
 
-// POST target for the form (JSON body). Keep any secrets on the server side.
-// Example: "/api/contact" backed by a route handler that sends the email.
-const CONTACT_ENDPOINT: string | null = null;
+// NEXT_PUBLIC_ variables must be written out in full so Next.js can inline them.
+const EMAILJS = {
+  serviceId: process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID,
+  templateId: process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID,
+  publicKey: process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY,
+};
+
+// Optional downloaded animated icon (GIF/WebP/PNG in /public). null = built-in animated SVG.
+const SUCCESS_ICON_SRC: string | null = null;
 
 const SERVICES = [
   "Website Design & Development",
@@ -66,7 +75,7 @@ const SERVICES = [
 ] as const;
 
 /* =====================================================================
-   2. FORM TYPES, VALIDATION, SUBMISSION
+   2. FORM TYPES, VALIDATION, SUBMISSION (EmailJS)
    ===================================================================== */
 
 type FieldName =
@@ -115,7 +124,6 @@ function validate(v: FormValues): FormErrors {
   if (!v.email) e.email = "Please enter your email address.";
   else if (!EMAIL_RE.test(v.email)) e.email = "Please enter a valid email address.";
   if (v.phone) {
-    // International-friendly: optional +, digits, spaces and ().- ; 7 to 15 digits.
     const digits = v.phone.replace(/\D/g, "");
     const shapeOk = /^\+?[0-9\s().-]+$/.test(v.phone);
     if (!shapeOk || digits.length < 7 || digits.length > 15) {
@@ -130,39 +138,33 @@ function validate(v: FormValues): FormErrors {
 class NotConfiguredError extends Error {}
 
 async function submitContact(values: FormValues): Promise<void> {
-  if (!CONTACT_ENDPOINT) throw new NotConfiguredError();
-  const res = await fetch(CONTACT_ENDPOINT, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(values),
-  });
-  if (!res.ok) throw new Error(`Request failed (${res.status})`);
+  const { serviceId, templateId, publicKey } = EMAILJS;
+  if (!serviceId || !templateId || !publicKey) throw new NotConfiguredError();
+
+  await emailjs.send(
+    serviceId,
+    templateId,
+    {
+      from_name: `${values.firstName} ${values.lastName}`,
+      first_name: values.firstName,
+      last_name: values.lastName,
+      from_email: values.email,
+      reply_to: values.email,
+      phone: values.phone || "Not provided",
+      company: values.company || "Not provided",
+      service: values.service,
+      message: values.message,
+    },
+    { publicKey }
+  );
 }
 
 /* =====================================================================
-   3. ANIMATED BORDER (dark-blue stroke that draws itself, clockwise)
-   ---------------------------------------------------------------------
-   The control keeps its normal light-gray border. An SVG <path> overlay
-   (pointer-events: none) sits exactly on top of it.
-
-   The direction is defined by the path itself, not by a CSS trick:
-     start at the top-left corner -> top edge, left to right
-     -> right edge, downward -> bottom edge, right to left
-     -> left edge, upward -> back to the start.
-   (See clockwisePath(): arcs use sweep-flag 1, which is clockwise on screen.)
-
-   The stroke is revealed with stroke-dasharray growing from "0 100" to
-   "100 0" (pathLength = 100). A growing dash always starts at the beginning
-   of the path and extends forward, so it can only travel in the path's
-   direction. Focus adds `is-active`, blur removes it, so re-focusing replays
-   the animation from the start. A ResizeObserver keeps the path matched to
-   the real wrapper size. Reduced motion: a static full outline, no animation.
+   3. ANIMATED BORDER (stroke that draws itself, clockwise)
    ===================================================================== */
 
 const FIELD_RADIUS = 6;
 
-// Rounded-rectangle outline as an explicit path: begins at the top-left
-// corner and runs clockwise (screen coordinates, y grows downward).
 function clockwisePath(w: number, h: number, inset: number, radius: number): string {
   const x1 = inset;
   const y1 = inset;
@@ -170,15 +172,15 @@ function clockwisePath(w: number, h: number, inset: number, radius: number): str
   const y2 = h - inset;
   const r = Math.max(0, Math.min(radius, (x2 - x1) / 2, (y2 - y1) / 2));
   return [
-    `M ${x1} ${y1 + r}`, // left edge, just below the top-left corner
-    `A ${r} ${r} 0 0 1 ${x1 + r} ${y1}`, // round the top-left corner (clockwise)
-    `H ${x2 - r}`, // top edge: left -> right
+    `M ${x1} ${y1 + r}`,
+    `A ${r} ${r} 0 0 1 ${x1 + r} ${y1}`,
+    `H ${x2 - r}`,
     `A ${r} ${r} 0 0 1 ${x2} ${y1 + r}`,
-    `V ${y2 - r}`, // right edge: top -> bottom
+    `V ${y2 - r}`,
     `A ${r} ${r} 0 0 1 ${x2 - r} ${y2}`,
-    `H ${x1 + r}`, // bottom edge: right -> left
+    `H ${x1 + r}`,
     `A ${r} ${r} 0 0 1 ${x1} ${y2 - r}`,
-    `V ${y1 + r}`, // left edge: bottom -> top, back to the start
+    `V ${y1 + r}`,
   ].join(" ");
 }
 
@@ -196,7 +198,6 @@ function AnimatedBorder({
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    // offsetWidth/Height ignore ancestor transforms (entrance animations).
     const measure = () => {
       const w = el.offsetWidth;
       const h = el.offsetHeight;
@@ -362,7 +363,7 @@ function TextAreaField({
 }
 
 /* =====================================================================
-   5. SECTIONS
+   5. ANIMATED ICONS (inline SVG, no external files)
    ===================================================================== */
 
 function PinIcon() {
@@ -385,11 +386,91 @@ function PinIcon() {
   );
 }
 
+// Small paper plane that flies while the message is sending.
+function PlaneIcon() {
+  return (
+    <svg
+      className="ct-plane"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M22 2 11 13" />
+      <path d="M22 2 15 22l-4-9-9-4 20-7Z" />
+    </svg>
+  );
+}
+
+// Animated alert icon for errors.
+function AlertIcon() {
+  return (
+    <svg
+      className="ct-alert-ico"
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 7v6" />
+      <circle cx="12" cy="16.5" r="0.6" fill="currentColor" />
+    </svg>
+  );
+}
+
+// "Email sent" animation: ring draws, envelope pops in, flap draws,
+// green badge pops, check draws, sparks burst outward.
+function SentIcon() {
+  if (SUCCESS_ICON_SRC) {
+    return (
+      <div className="ct-ok-wrap">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={SUCCESS_ICON_SRC} alt="" width={120} height={120} className="ct-ok-img" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="ct-ok-wrap" aria-hidden="true">
+      <svg className="ct-ok-svg" viewBox="0 0 120 120" fill="none" focusable="false">
+        <circle className="ct-ok-ring" cx="60" cy="60" r="54" pathLength={100} />
+        <g className="ct-ok-env">
+          <rect className="ct-ok-body" x="26" y="38" width="68" height="46" rx="7" />
+          <path className="ct-ok-flap" d="M29 43 L60 66 L91 43" pathLength={100} />
+        </g>
+        <circle className="ct-ok-badge" cx="90" cy="84" r="15" />
+        <path className="ct-ok-check" d="M82.5 84.5 l5 5 l9.5 -10.5" pathLength={100} />
+      </svg>
+      {Array.from({ length: 10 }).map((_, i) => (
+        <span
+          key={i}
+          className="ct-ok-spark"
+          style={{ "--a": `${i * 36}deg`, "--d": `${700 + (i % 3) * 80}ms` } as React.CSSProperties}
+        />
+      ))}
+    </div>
+  );
+}
+
+/* =====================================================================
+   6. SECTIONS
+   ===================================================================== */
+
 const HERO_LINES = ["Let's Build Something", "Meaningful Together."];
 
-// Heading is read as one natural sentence via aria-label; the per-character
-// spans are decorative (aria-hidden), so the text is never duplicated for
-// assistive tech. Words are inline-block so wrapping only happens between words.
 function SplitHeading({ lines }: { lines: string[] }) {
   return (
     <h1 id="ct-hero-title" className="ct-h1" aria-label={lines.join(" ")}>
@@ -459,7 +540,7 @@ function ContactForm() {
 
   const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (status === "submitting") return; // no duplicate submissions
+    if (status === "submitting") return;
 
     const form = e.currentTarget;
     const values = readValues(form);
@@ -481,13 +562,12 @@ function ContactForm() {
       setStatus("error");
       setFormError(
         err instanceof NotConfiguredError
-          ? "This form isn't connected to a delivery service yet, so your message was not sent. Please contact us by email or phone instead."
-          : "Something went wrong and your message was not sent. Please try again in a moment."
+          ? "Email sending is not configured yet. Please add the EmailJS keys to .env.local, or contact us by email or phone."
+          : "Something went wrong and your email was not sent. Please try again in a moment."
       );
     }
   };
 
-  // Clear a field's error as soon as the user edits it.
   const onChange = (e: FormEvent<HTMLFormElement>) => {
     const name = (e.target as HTMLInputElement).name as FieldName;
     if (name && errors[name]) setErrors((p) => ({ ...p, [name]: undefined }));
@@ -495,11 +575,13 @@ function ContactForm() {
 
   if (status === "success") {
     return (
-      <div className="ct-card ct-success" ref={successRef} tabIndex={-1} role="status">
-        <span className="ct-success-mark" aria-hidden="true" />
-        <h2 className="ct-h3">Thank you for reaching out!</h2>
-        <p className="ct-p">Your message has been received. We&apos;ll be in touch soon.</p>
-        <button type="button" className="ct-ghost" onClick={() => setStatus("idle")}>
+      <div className="ct-card ct-success" ref={successRef} tabIndex={-1} role="status" aria-live="polite">
+        <SentIcon />
+        <h2 className="ct-h3 ct-ok-title">Email sent successfully!</h2>
+        <p className="ct-p ct-ok-text">
+          Thank you for reaching out. We have received your message and will reply within 24 hours.
+        </p>
+        <button type="button" className="ct-ghost ct-ok-btn" onClick={() => setStatus("idle")}>
           Send another message
         </button>
       </div>
@@ -565,7 +647,8 @@ function ContactForm() {
 
         {formError && (
           <p className="ct-form-error" role="alert">
-            {formError}
+            <AlertIcon />
+            <span>{formError}</span>
           </p>
         )}
 
@@ -577,7 +660,7 @@ function ContactForm() {
         >
           {status === "submitting" ? (
             <>
-              <span className="ct-spinner" aria-hidden="true" />
+              <PlaneIcon />
               Sending...
             </>
           ) : (
@@ -592,8 +675,6 @@ function ContactForm() {
 function CompanyLocation() {
   const { address, mapQuery, coordinates } = COMPANY;
 
-  // Interactive embed, no API key. With verified coordinates: OpenStreetMap + marker.
-  // Otherwise the map is looked up from the exact address text.
   const embedSrc = coordinates
     ? `https://www.openstreetmap.org/export/embed.html?bbox=${coordinates.lng - 0.008},${coordinates.lat - 0.005},${coordinates.lng + 0.008},${coordinates.lat + 0.005}&layer=mapnik&marker=${coordinates.lat},${coordinates.lng}`
     : `https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}&output=embed`;
@@ -639,7 +720,7 @@ function CompanyLocation() {
 }
 
 /* =====================================================================
-   6. PAGE
+   7. PAGE
    ===================================================================== */
 
 export default function ContactPage() {
@@ -651,13 +732,10 @@ export default function ContactPage() {
 
     gsap.registerPlugin(ScrollTrigger);
 
-    // Reduced motion: skip every entrance animation (content is visible by default).
     const mm = gsap.matchMedia();
 
     mm.add("(prefers-reduced-motion: no-preference)", () => {
       const ctx = gsap.context(() => {
-        // Hero: eyebrow fades in, heading reveals letter by letter, then the description.
-        // Runs once on load; reverted automatically on cleanup (Strict Mode safe).
         const chars = gsap.utils.toArray<HTMLElement>(".ct-char");
         gsap
           .timeline({ defaults: { ease: "power3.out" } })
@@ -665,9 +743,6 @@ export default function ContactPage() {
           .from(chars, { opacity: 0, yPercent: 60, duration: 0.55, stagger: 0.03 }, 0.35)
           .from(".ct-hero-p", { opacity: 0, y: 16, duration: 0.7 }, 1.0);
 
-        // Contact content: ONE timeline, ONE trigger, plays once. The trigger is the
-        // grid (not the section) so it fires as the content itself approaches the viewport,
-        // which matters now that the section's top edge already overlaps the hero.
         gsap
           .timeline({
             defaults: { ease: "power2.out", clearProps: "opacity,transform" },
@@ -677,10 +752,6 @@ export default function ContactPage() {
           .from(".ct-card", { opacity: 0, y: 24, duration: 0.7 }, 0.1)
           .from(".ct-card .ct-reveal", { opacity: 0, y: 14, duration: 0.5, stagger: 0.06 }, 0.3);
 
-        // Subtle scroll-linked lift of the content as the white surface rises.
-        // It moves .ct-grid only (never the rounded section itself), so no gap can
-        // open between the hero and the white surface, and it never shares an
-        // element with the entrance tweens above.
         gsap.fromTo(
           ".ct-grid",
           { y: 28 },
@@ -691,7 +762,6 @@ export default function ContactPage() {
           }
         );
 
-        // Map block.
         gsap.from(".ct-map-block > *", {
           opacity: 0,
           y: 20,
@@ -728,19 +798,20 @@ export default function ContactPage() {
 }
 
 /* =====================================================================
-   7. STYLES (scoped with the "ct-" prefix)
+   8. STYLES (scoped with the "ct-" prefix)
    ===================================================================== */
 
 const STYLES = `
 .ct-page {
   --ct-text: #000000;
-  --ct-navy: #000000;        /* headings: black */
-  --ct-stroke: #141823;      /* dark blue: used ONLY by the animated input border */
-  --ct-line: #e5e7eb;        /* neutral hairline borders */
+  --ct-navy: #000000;
+  --ct-stroke: #141823;
+  --ct-line: #e5e7eb;
+  --ct-ok: #16a34a;
   --ct-r: ${FIELD_RADIUS}px;
-  --ct-overlap: 120px;       /* how far the white section rises over the hero (desktop) */
-  --ct-radius: 64px;         /* upper corner radius of the white section (desktop) */
-  --ct-nav: 72px;            /* clearance for a fixed navbar; set to 0px if your navbar is not fixed */
+  --ct-overlap: 120px;
+  --ct-radius: 64px;
+  --ct-nav: 72px;
   background: #ffffff;
   color: var(--ct-text);
   overflow-x: clip;
@@ -796,10 +867,6 @@ const STYLES = `
 }
 
 /* ---------- Main two-column section ---------- */
-/* The white surface rises over the bottom of the black hero. It stays in normal
-   document flow (negative top margin only), so page height, the map and the
-   footer position are unaffected. Both upper corners share one radius; the
-   lower corners stay square so it flows straight into the map section. */
 .ct-main {
   position: relative;
   z-index: 2;
@@ -867,14 +934,14 @@ const STYLES = `
   border: 1px solid #d5dae1;
   border-radius: var(--ct-r);
   font: inherit;
-  font-size: 16px; /* 16px prevents iOS zoom on focus */
+  font-size: 16px;
   line-height: 1.4;
   color: var(--ct-text);
   outline: none;
   transition: border-color 200ms ease;
 }
 .ct-control::placeholder { color: #000000; opacity: 0.5; }
-.ct-control:focus { border-color: #d5dae1; } /* keeps the gray border so the blue line is clearly visible */
+.ct-control:focus { border-color: #d5dae1; }
 .ct-textarea { min-height: 140px; resize: vertical; }
 .ct-select {
   appearance: none;
@@ -885,7 +952,6 @@ const STYLES = `
   background-repeat: no-repeat;
   background-position: right 14px center;
 }
-/* Validation: solid black border + a text message, never the blue focus stroke. */
 .ct-ab.is-invalid .ct-control { border-color: #000000; }
 
 .ct-ab-svg { position: absolute; top: 0; left: 0; pointer-events: none; overflow: visible; }
@@ -895,9 +961,8 @@ const STYLES = `
   stroke-width: 2;
   stroke-linecap: butt;
   stroke-linejoin: round;
-  stroke-dasharray: 0 100; /* nothing drawn until focus */
+  stroke-dasharray: 0 100;
 }
-/* The dash grows from the START of the path (top-left) forward = clockwise. */
 .ct-ab.is-active .ct-ab-stroke { animation: ct-draw 780ms cubic-bezier(0.65, 0, 0.35, 1) forwards; }
 @keyframes ct-draw {
   from { stroke-dasharray: 0 100; }
@@ -912,7 +977,12 @@ const STYLES = `
   color: #000000;
 }
 .ct-error::before { content: "! "; font-weight: 700; }
+
+/* Error banner with shaking icon */
 .ct-form-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   margin: 0 0 16px;
   padding: 12px 14px;
   font-size: 14px;
@@ -921,6 +991,19 @@ const STYLES = `
   background: #ffffff;
   border: 1px solid #000000;
   border-radius: var(--ct-r);
+  animation: ct-fade-up 320ms ease both;
+}
+.ct-alert-ico { flex-shrink: 0; margin-top: 1px; animation: ct-shake 600ms ease 200ms both; }
+@keyframes ct-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px) rotate(-6deg); }
+  40% { transform: translateX(4px) rotate(6deg); }
+  60% { transform: translateX(-3px) rotate(-4deg); }
+  80% { transform: translateX(3px) rotate(4deg); }
+}
+@keyframes ct-fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .ct-submit {
@@ -939,17 +1022,20 @@ const STYLES = `
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
+  overflow: hidden;
   transition: background-color 250ms ease, color 250ms ease;
 }
 .ct-submit:hover:not(:disabled) { background: #141823; color: #ffffff; box-shadow: inset 0 0 0 1px #000000; }
 .ct-submit:focus-visible { outline: 2px solid #000000; outline-offset: 3px; }
-.ct-submit:disabled { opacity: 0.75; cursor: progress; }
-.ct-spinner {
-  width: 16px; height: 16px; border-radius: 50%;
-  border: 2px solid currentColor; border-right-color: transparent;
-  animation: ct-spin 700ms linear infinite;
+.ct-submit:disabled { opacity: 0.85; cursor: progress; }
+
+/* Flying paper plane while sending */
+.ct-plane { animation: ct-fly 1100ms ease-in-out infinite; }
+@keyframes ct-fly {
+  0%   { transform: translate(-6px, 4px) rotate(0deg); opacity: 0.6; }
+  50%  { transform: translate(6px, -4px) rotate(-8deg); opacity: 1; }
+  100% { transform: translate(-6px, 4px) rotate(0deg); opacity: 0.6; }
 }
-@keyframes ct-spin { to { transform: rotate(360deg); } }
 
 .ct-ghost {
   display: inline-flex;
@@ -970,10 +1056,86 @@ const STYLES = `
 .ct-ghost:hover { background: #000000; border-color: #000000; color: #ffffff; }
 .ct-ghost:focus-visible { outline: 2px solid #000000; outline-offset: 3px; }
 
-/* Success */
-.ct-success { outline: none; }
-.ct-success .ct-p { margin-bottom: 24px; }
-.ct-success-mark { display: block; width: 28px; height: 3px; margin-bottom: 20px; background: #000000; }
+/* ---------- Success: "Email sent successfully!" ---------- */
+.ct-success {
+  outline: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding-top: clamp(32px, 4vw, 48px);
+  padding-bottom: clamp(32px, 4vw, 48px);
+}
+.ct-success .ct-p { margin: 0 auto 24px; }
+.ct-ok-wrap { position: relative; width: 120px; height: 120px; margin-bottom: 22px; }
+.ct-ok-svg, .ct-ok-img { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.ct-ok-ring {
+  stroke: #000000;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: 60px 60px;
+  animation: ct-ring 900ms cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+@keyframes ct-ring {
+  from { stroke-dasharray: 0 100; }
+  to   { stroke-dasharray: 100 0; }
+}
+.ct-ok-env {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ct-pop 650ms cubic-bezier(0.34, 1.56, 0.64, 1) 350ms both;
+}
+.ct-ok-body { fill: #ffffff; stroke: #000000; stroke-width: 3; }
+.ct-ok-flap {
+  stroke: #000000;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  animation: ct-draw-line 600ms ease 750ms both;
+}
+.ct-ok-badge {
+  fill: var(--ct-ok);
+  stroke: #ffffff;
+  stroke-width: 3;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ct-pop 600ms cubic-bezier(0.34, 1.56, 0.64, 1) 950ms both;
+}
+.ct-ok-check {
+  stroke: #ffffff;
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  animation: ct-draw-line 420ms ease 1300ms both;
+}
+@keyframes ct-pop {
+  0%   { opacity: 0; transform: scale(0.4); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes ct-draw-line {
+  from { stroke-dasharray: 0 100; }
+  to   { stroke-dasharray: 100 0; }
+}
+.ct-ok-spark {
+  position: absolute;
+  left: calc(50% - 3px);
+  top: calc(50% - 3px);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #000000;
+  opacity: 0;
+  animation: ct-spark 900ms ease-out var(--d, 900ms) both;
+}
+.ct-ok-spark:nth-of-type(3n) { background: var(--ct-ok); }
+@keyframes ct-spark {
+  0%   { opacity: 1; transform: rotate(var(--a)) translateY(-58px) scale(1); }
+  100% { opacity: 0; transform: rotate(var(--a)) translateY(-92px) scale(0.3); }
+}
+.ct-ok-title { animation: ct-fade-up 600ms ease 1100ms both; }
+.ct-ok-text  { animation: ct-fade-up 600ms ease 1250ms both; }
+.ct-ok-btn   { animation: ct-fade-up 600ms ease 1400ms both; }
 
 /* ---------- Map ---------- */
 .ct-loc-section { background: #ffffff; padding: 0 24px clamp(64px, 9vw, 120px); }
@@ -1009,15 +1171,18 @@ const STYLES = `
   .ct-page { --ct-overlap: 50px; --ct-radius: 32px; }
   .ct-main, .ct-loc-section, .ct-hero { padding-left: 20px; padding-right: 20px; }
   .ct-br { display: none; }
-  .ct-line { display: inline; } /* natural wrapping on small screens */
+  .ct-line { display: inline; }
   .ct-row2 { grid-template-columns: minmax(0, 1fr); }
   .ct-map-foot .ct-ghost { width: 100%; justify-content: center; }
 }
 
-/* ---------- Reduced motion: static blue outline, no travelling animation ---------- */
+/* ---------- Reduced motion: final states only, no movement ---------- */
 @media (prefers-reduced-motion: reduce) {
   .ct-ab.is-active .ct-ab-stroke { animation: none; stroke-dasharray: 100 0; }
-  .ct-spinner { animation-duration: 1.6s; }
+  .ct-plane, .ct-alert-ico, .ct-form-error { animation: none; }
+  .ct-ok-ring, .ct-ok-env, .ct-ok-flap, .ct-ok-badge, .ct-ok-check,
+  .ct-ok-title, .ct-ok-text, .ct-ok-btn { animation: none; }
+  .ct-ok-spark { display: none; }
   .ct-submit, .ct-ghost, .ct-control { transition: none; }
 }
 `;
