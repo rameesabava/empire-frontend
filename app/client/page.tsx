@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
@@ -141,50 +141,66 @@ type Testimonial = {
   role: string;
   company: string;
   review: string;
-  /** Optional image path. Falls back to an initials avatar when omitted. */
+  /** Logo in its ORIGINAL colours (path in /public). */
   image?: string;
+  /** A separate white/light version of the same logo. Wins over `image`. */
+  imageOnDark?: string;
+  /** Single-colour logo on a transparent PNG: draw it in white on the black avatar. */
+  whiteMask?: boolean;
 };
 
 const TESTIMONIALS: Testimonial[] = [
   {
-    id: "david-morgan",
-    name: "David Morgan",
-    role: "Chief Technology Officer",
-    company: "NovaTech",
-    review:
-      "The team delivered a reliable and scalable solution that helped us streamline our operations. Their technical expertise and practical approach made the entire development process smooth and efficient.",
-  },
-  {
-    id: "sarah-mitchell",
-    name: "Sarah Mitchell",
-    role: "Head of Product",
-    company: "Vertex AI",
-    review:
-      "Working with this team was a great experience. They understood our product requirements, communicated clearly, and delivered a solution that fit our business needs.",
-  },
-  {
-    id: "daniel-brooks",
-    name: "Daniel Brooks",
-    role: "Engineering Director",
-    company: "QuantumWorks",
+    id: "nakshathra",
+    name: "Nakshathra Gold and Diamonds",
+    role: "Founder",
+    company: "",
     review:
       "Their engineering team helped us improve the reliability of our platform and simplify several complex workflows. The collaboration was professional and well organized.",
+    // Single-colour logo drawn in white. Swap the path if this is not the
+    // Gold and Diamonds logo.
+    image: "/logos/logos/Nakshathra_Hrms.png",
+    whiteMask: true,
   },
   {
-    id: "emily-carter",
-    name: "Emily Carter",
-    role: "Product Manager",
-    company: "Lumina Health",
+    id: "Caior",
+    name: "Caior",
+    role: "Founder",
+    company: "",
+    review:
+      "Their digital marketing strategies improved our online visibility, attracted more potential customers, and helped our business grow through effective campaigns.",
+    
+    image: "/logos/logos/caior.png",
+    whiteMask: true,
+  },
+  {
+    id: "charmika",
+    name: "Charmika",
+    role: "Founder",
+    company: "",
+    review:
+      "Working with this team was a great experience. They understood our product requirements, communicated clearly, and delivered a solution that fit our business needs.",
+    image: "/logos/logos/Charmika.png",
+  },
+
+  {
+    id: "FalvorHouse",
+    name: "Falvor House",
+    role: "Founder",
+    company: "",
     review:
       "The team took the time to understand our challenges and proposed a practical solution. Their attention to detail and responsiveness made a real difference to our project.",
+   image: "/logos/logos/Falvor_House.png",
+    whiteMask: true,
   },
   {
-    id: "michael-reed",
-    name: "Michael Reed",
+    id: "keralainstitutesalesapp",
+    name: "kerala institute",
     role: "Founder",
-    company: "Orbit Systems",
+    company: "",
     review:
       "From planning to delivery, the team maintained a clear focus on quality and usability. The final solution gave us a stronger foundation for future improvements.",
+    image: "/logos/logos/kerala_institute_sales_app.png",
   },
 ];
 
@@ -226,29 +242,36 @@ type Variant =
 type Brand = {
   name: string;
   variant: Variant;
-  /** Optional: path to a real SVG in /public (e.g. "/logos/nike.svg").
-   *  When set it is drawn in cream with a CSS mask instead of the text mark. */
+  /** Path to the logo image in /public. */
   src?: string;
+  /** Visual size tweak relative to the shared slot box (1 = Indoor_petals reference).
+   *  Use it for logos with transparent padding or unusual aspect ratios. */
+  scale?: number;
+  /** "theme": draw the artwork in the showcase foreground colour (white on the
+   *  black theme, black on the white theme) via an alpha mask. Only for
+   *  single-colour logos on a transparent background.
+   *  "original": keep the artwork's own colours (default). */
+  colorMode?: "theme" | "original";
 };
 
 // Add more groups here. Every group needs the same number of brands
 // (one per slot) and the loop will cycle through them in this order.
 const BRAND_GROUPS: Brand[][] = [
   [
-    { name: "Intel", variant: "intel" },
-    { name: "YouTube", variant: "youtube" },
-    { name: "Netflix", variant: "netflix" },
-    { name: "Amazon", variant: "amazon" },
-    { name: "Ford", variant: "ford" },
-    { name: "Samsung", variant: "samsung" },
+    { name: "CAIOR", variant: "intel", src: "/logos/logos/caior.png", colorMode: "theme", scale: 1 },
+    { name: "Charmika", variant: "youtube", src: "/logos/logos/Charmika.png", scale: 1 },
+    { name: "Credtree", variant: "netflix", src: "/logos/logos/credtree.png", scale: 1 },
+    { name: "Fira", variant: "amazon", src: "/logos/logos/Fira.png", colorMode: "theme", scale: 1 },
+    { name: "Devamshi", variant: "ford", src: "/logos/logos/Devamshi.png", scale: 1 },
+    { name: "EGL", variant: "samsung", src: "/logos/logos/EGL.png", scale: 1 },
   ],
   [
-    { name: "EA Games", variant: "ea" },
-    { name: "Nike", variant: "nike" },
-    { name: "AOL", variant: "aol" },
-    { name: "Gucci", variant: "gucci" },
-    { name: "McDonald's", variant: "mcdonalds" },
-    { name: "Microsoft", variant: "microsoft" },
+    { name: "Elaamy", variant: "ea", src: "/logos/logos/Elaamy.png", scale: 1 },
+    { name: "Ethenzaa", variant: "nike", src: "/logos/logos/Ethenzaa.png", scale: 1 },
+    { name: "Nakshathra HRMS", variant: "aol", src: "/logos/logos/Nakshathra_Hrms.png", colorMode: "theme", scale: 1 },
+    { name: "Indoor Petals", variant: "gucci", src: "/logos/logos/kerala_institute_sales_app.png", scale: 1 }, // sizing reference
+    { name: "Gabby Talk", variant: "mcdonalds", src: "/logos/logos/gabby_talk.png", scale: 1 },
+    { name: "HeartMate", variant: "microsoft", src: "/logos/logos/suchiGo.png", scale: 1 },
   ],
 ];
 
@@ -296,12 +319,33 @@ const MARK_TEXT: Partial<Record<Variant, string>> = {
 
 function LogoMark({ brand }: { brand: Brand }) {
   if (brand.src) {
+    const scaleStyle = { "--bs-logo-scale": brand.scale ?? 1 } as CSSProperties;
+
+    // Single-colour logo: alpha mask filled with the theme foreground, so it
+    // flips with the existing --bs-fg variable (no transition, no filter).
+    if (brand.colorMode === "theme") {
+      return (
+        <span
+          role="img"
+          aria-label={brand.name}
+          className="eae-bs-brand-image eae-bs-brand-theme"
+          style={{
+            ...scaleStyle,
+            WebkitMaskImage: `url(${brand.src})`,
+            maskImage: `url(${brand.src})`,
+          }}
+        />
+      );
+    }
+
     return (
-      <span
-        role="img"
-        aria-label={brand.name}
-        className="eae-bs-mask"
-        style={{ WebkitMaskImage: `url(${brand.src})`, maskImage: `url(${brand.src})` }}
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={brand.src}
+        alt={brand.name}
+        className="eae-bs-brand-image"
+        style={scaleStyle}
+        draggable={false}
       />
     );
   }
@@ -498,6 +542,68 @@ const getInitials = (name: string) =>
     .slice(0, 2)
     .join("")
     .toUpperCase();
+
+/* Client avatar: shows the company logo on the black circle.
+   - whiteMask: single-colour logo drawn in white from the PNG's alpha channel
+     (styles are inline, so no external CSS is needed for it to work).
+   - otherwise a standard <img> in the logo's original colours.
+   If there is no logo, or the file fails to load, the initials show instead,
+   so an invisible logo is never rendered. */
+function ClientAvatar({ item }: { item: Testimonial }) {
+  const src = item.imageOnDark ?? item.image;
+  const [failed, setFailed] = useState(false);
+
+  // A CSS mask can't fire onError, so probe the file to keep the initials fallback.
+  useEffect(() => {
+    if (!src || !item.whiteMask) return;
+    setFailed(false);
+    const probe = new window.Image();
+    probe.onerror = () => setFailed(true);
+    probe.src = src;
+    return () => {
+      probe.onerror = null;
+    };
+  }, [src, item.whiteMask]);
+
+  let content: ReactNode = getInitials(item.name);
+
+  if (src && !failed) {
+    content = item.whiteMask ? (
+      <span
+        className="eae-avatar-mask"
+        style={{
+          display: "block",
+          width: "72%",
+          height: "72%",
+          backgroundColor: "#ffffff",
+          WebkitMaskImage: `url(${src})`,
+          maskImage: `url(${src})`,
+          WebkitMaskRepeat: "no-repeat",
+          maskRepeat: "no-repeat",
+          WebkitMaskPosition: "center",
+          maskPosition: "center",
+          WebkitMaskSize: "contain",
+          maskSize: "contain",
+        }}
+      />
+    ) : (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={src}
+        alt=""
+        className="eae-avatar-logo"
+        draggable={false}
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+
+  return (
+    <div className="eae-avatar" aria-hidden="true">
+      {content}
+    </div>
+  );
+}
 
 function Chevron({ direction }: { direction: "left" | "right" }) {
   return (
@@ -1130,14 +1236,7 @@ function ClientTestimonials({ items }: { items: Testimonial[] }) {
             >
               <div className="eae-content">
                 <div className="eae-person">
-                  <div className="eae-avatar" aria-hidden="true">
-                    {item.image ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={item.image} alt="" />
-                    ) : (
-                      getInitials(item.name)
-                    )}
-                  </div>
+                  <ClientAvatar item={item} />
                   <div>
                     <p className="eae-name">{item.name}</p>
                     <p className="eae-meta">{item.role}</p>
@@ -1321,6 +1420,27 @@ const STYLES = `
   -webkit-mask-position: left center; mask-position: left center;
   -webkit-mask-size: contain; mask-size: contain;
 }
+.eae-bs-brand-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  object-position: left center;
+  flex-shrink: 0;
+  user-select: none;
+  pointer-events: none;
+  transform: scale(var(--bs-logo-scale, 1));
+  transform-origin: left center;
+}
+/* Theme-coloured logos: the PNG's alpha channel is the shape, --bs-fg the colour */
+.eae-bs-brand-theme {
+  background-color: var(--bs-fg);
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-position: left center; mask-position: left center;
+  -webkit-mask-size: contain; mask-size: contain;
+}
 .eae-mk-intel { font-weight: 700; letter-spacing: -0.05em; font-size: calc(var(--bs-fs) * 1.1); }
 .eae-mk-youtube, .eae-mk-yt { font-weight: 700; letter-spacing: -0.04em; font-size: calc(var(--bs-fs) * 0.85); }
 .eae-mk-yt-box {
@@ -1459,6 +1579,23 @@ const STYLES = `
   overflow: hidden;
 }
 .eae-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Logo inside the avatar: whole logo visible, centred, original colours */
+.eae-avatar .eae-avatar-logo {
+  padding: 14%;
+  box-sizing: border-box;
+  object-fit: contain;
+  object-position: center;
+}
+/* Single-colour logo drawn in white: PNG alpha is the shape */
+.eae-avatar .eae-avatar-mask {
+  display: block;
+  width: 72%;
+  height: 72%;
+  background-color: #ffffff;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-position: center; mask-position: center;
+  -webkit-mask-size: contain; mask-size: contain;
+}
 .eae-name { margin: 0; font-size: 20px; font-weight: 600; color: #444141; }
 .eae-meta { margin: 4px 0 0; font-size: 16px; line-height: 1.4; color: #4b4545; }
 .eae-quote {
@@ -1507,6 +1644,62 @@ const STYLES = `
   .eae-person { gap: 16px; }
   .eae-arrow { width: 44px; height: 44px; }
   .eae-avatar { width: 64px; height: 64px; font-size: 20px; }
+}
+
+/* ---------------------------------------------------------------
+   Extra responsive tuning (CSS only: no JS, timeline or theme changes)
+   --------------------------------------------------------------- */
+
+/* Very large screens: keep the logo row from stretching edge to edge */
+@media (min-width: 1800px) {
+  .eae-bs-row { max-width: 1760px; margin-inline: auto; }
+  .eae-reveal-text { max-width: 1100px; }
+}
+
+/* Small laptops / large tablets */
+@media (max-width: 1200px) {
+  .eae-content { gap: clamp(28px, 5vw, 64px); }
+}
+
+/* Tablets and below */
+@media (max-width: 900px) {
+  .eae-bs { padding-inline: clamp(16px, 4vw, 32px); }
+  .eae-showcase { padding: clamp(56px, 12vw, 96px) 0 clamp(40px, 8vw, 72px); }
+  .eae-container { padding-top: clamp(32px, 6vw, 64px); }
+  .eae-header { margin-bottom: clamp(28px, 5vw, 48px); }
+  .eae-quote { max-width: none; }
+}
+
+/* Phones */
+@media (max-width: 640px) {
+  .eae-bs { --bs-h: clamp(48px, 13vw, 68px); padding-inline: 16px; }
+  .eae-bs-row { column-gap: 12px; }
+  .eae-heading { font-size: clamp(26px, 7.4vw, 34px); }
+  .eae-quote { font-size: clamp(18px, 4.8vw, 24px); line-height: 1.45; }
+  .eae-name { font-size: 18px; }
+  .eae-meta { font-size: 15px; }
+  .eae-controls { gap: 10px; }
+}
+
+/* Very small phones: 2 x 3 logo grid so each logo keeps a readable size */
+@media (max-width: 360px) {
+  .eae-bs-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .eae-container { padding-inline: 16px; }
+}
+
+/* Short landscape screens (phones turned sideways, small windows) */
+@media (max-height: 560px) {
+  .eae-showcase { padding: 24px 0; }
+  .eae-container { padding-top: 16px; }
+  .eae-header { margin-bottom: 20px; }
+  .eae-content { min-height: 0; gap: 24px; }
+  .eae-quote { font-size: clamp(16px, 2.4vw, 22px); }
+  .eae-reveal-text { font-size: clamp(20px, 3.4vw, 30px); }
+}
+
+/* Touch screens: no sticky hover state on the arrow buttons */
+@media (hover: none) {
+  .eae-arrow:hover { background: #000000; transform: none; }
 }
 
 /* Reduced motion */

@@ -600,7 +600,7 @@ function ContactForm() {
             label="First Name"
             required
             autoComplete="given-name"
-            placeholder="Jane"
+            placeholder=""
             error={errors.firstName}
           />
           <TextField
@@ -608,7 +608,7 @@ function ContactForm() {
             label="Last Name"
             required
             autoComplete="family-name"
-            placeholder="Doe"
+            placeholder=""
             error={errors.lastName}
           />
         </div>
@@ -618,7 +618,7 @@ function ContactForm() {
           type="email"
           required
           autoComplete="email"
-          placeholder="you@company.com"
+          placeholder=""
           error={errors.email}
         />
         <TextField
@@ -626,14 +626,14 @@ function ContactForm() {
           label="Phone Number"
           type="tel"
           autoComplete="tel"
-          placeholder="+1 555 123 4567"
+          placeholder=""
           error={errors.phone}
         />
         <TextField
           name="company"
           label="Company Name"
           autoComplete="organization"
-          placeholder="Your company"
+          placeholder=""
           error={errors.company}
         />
         <SelectField name="service" label="Service Interested In" required error={errors.service} />
@@ -641,7 +641,7 @@ function ContactForm() {
           name="message"
           label="Project Message"
           required
-          placeholder="Tell us a little about your project, goals, or challenges..."
+          placeholder=""
           error={errors.message}
         />
 
